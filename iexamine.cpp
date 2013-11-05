@@ -16,6 +16,7 @@
 #include "player.h"
 #include "translations.h"
 #include "monstergenerator.h"
+#include "computer.h"
 #include <sstream>
 #include <algorithm>
 
@@ -184,6 +185,25 @@ void iexamine::cardreader(game *g, player *p, map *m, int examx, int examy) {
   } else {
    g->add_msg(_("Looks like you need a %s."),g->itypes[card_type]->name.c_str());
   }
+ }
+}
+
+void iexamine::console (game *g, player *p, map *m, int examx, int examy){
+ if (m->has_flag("CONSOLE", examx, examy)) {
+  if (p->has_trait("ILLITERATE")) {
+   g->add_msg(_("You can not read a computer screen!"));
+   return;
+  }
+
+  if (p->has_trait("HYPEROPIC") && !p->is_wearing("glasses_reading")
+      && !p->is_wearing("glasses_bifocal")) {
+   g->add_msg(_("You'll need to put on reading glasses before you can see the screen."));
+   return;
+  }
+
+  computer* comp = m->computer_at(examx, examy);
+
+  comp->use(g);
  }
 }
 
@@ -1009,6 +1029,9 @@ void (iexamine::*iexamine_function_from_string(std::string function_name))(game*
   }
   if ("cardreader" == function_name) {
     return &iexamine::cardreader;
+  }
+  if ("console" == function_name) {
+    return &iexamine::console;
   }
   if ("rubble" == function_name) {
     return &iexamine::rubble;

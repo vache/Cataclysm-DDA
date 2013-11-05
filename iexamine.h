@@ -25,6 +25,7 @@ public:
  void elevator (game *g, player *p, map *m, int examx, int examy);
  void controls_gate(game *g, player *p, map *m, int examx, int examy);
  void cardreader (game *g, player *p, map *m, int examx, int examy);
+ void console (game *g, player *p, map *m, int examx, int examy);
  void rubble (game *g, player *p, map *m, int examx, int examy);
  void chainfence (game *g, player *p, map *m, int examx, int examy);
  void tent (game *g, player *p, map *m, int examx, int examy);

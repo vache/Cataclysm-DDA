@@ -5,9 +5,257 @@
 #include "output.h"
 #include "json.h"
 #include "monstergenerator.h"
+#include "item_factory.h"
 #include <fstream>
 #include <string>
 #include <sstream>
+
+bool compsec_pass::attempt()
+{
+    std::string input = string_input_popup(_("Enter Password"), 256);
+    return (input == pass);
+}
+
+bool compsec_hack::attempt()
+{
+    g->u.practice(g->turn, "computer", 5 + diff * 2);
+
+    int player_roll = g->u.skillLevel("computer");
+    if (g->u.int_cur < 8 && one_in(2))
+    {
+        player_roll -= rng(0, 8 - g->u.int_cur);
+    }
+    else if (g->u.int_cur > 8 && one_in(3))
+    {
+        player_roll += rng(0, g->u.int_cur - 8);
+    }
+
+    return (dice(player_roll, 6) >= dice(diff, 6));
+}
+
+bool compsec_item::attempt()
+{
+    if(g->u.has_amount(it, num))
+    {
+        g->u.use_amount(it, num);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool compsec_itemat::attempt()
+{
+    std::vector<item> items = g->m.i_at(itemx, itemy);
+
+    for(int i = 0; i < items.size(); i++)
+    {
+        item *itemat = &items.at(i);
+        if(itemat->name == it)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void compact_chter::go()
+{
+    g->m.ter_set(terx, tery, ter);
+}
+
+void compact_msg::go()
+{
+    g->add_msg(msg.c_str());
+}
+
+void compact_chlvl::go()
+{
+    g->vertical_move(z, false);
+}
+
+void compact_noise::go()
+{
+    g->sound(g->u.posx, g->u.posy, vol, desc);
+}
+
+void compact_mon::go()
+{
+    monster newmon(GetMType(mon));
+    newmon.spawn(monx, mony);
+    g->add_zombie(newmon);
+}
+
+void compact_item::go()
+{
+    item new_item = item_controller->create(it, (int)g->turn);
+    //point p =  g->m.getlocal(itemx, itemy);
+    g->m.add_item(itemx, itemy, new_item);
+}
+
+void compact_map::go()
+{
+    int minx = int((g->levx + int(MAPSIZE / 2)) / 2) - rad;
+    int maxx = int((g->levx + int(MAPSIZE / 2)) / 2) + rad;
+    int miny = int((g->levy + int(MAPSIZE / 2)) / 2) - rad;
+    int maxy = int((g->levy + int(MAPSIZE / 2)) / 2) + rad;
+    if (minx < 0)
+    {
+        minx = 0;
+    }
+    if (maxx >= OMAPX)
+    {
+        maxx = OMAPX - 1;
+    }
+    if (miny < 0)
+    {
+        miny = 0;
+    }
+    if (maxy >= OMAPY)
+    {
+        maxy = OMAPY - 1;
+    }
+
+    if(types.size() == 0)
+    {
+        for (int i = minx; i <= maxx; i++)
+        {
+            for (int j = miny; j <= maxy; j++)
+            {
+                g->cur_om->seen(i, j, z) = true;
+            }
+        }
+    }
+    else
+    {
+        for (int i = minx; i <= maxx; i++)
+        {
+            for (int j = miny; j <= maxy; j++)
+            {
+                for(int k = 0; k < types.size(); k++)
+                {
+                    if(g->cur_om->ter(i, j, z) == types.at(k))
+                    {
+                        g->cur_om->seen(i, j, z) = true;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void compopt::go()
+{
+    if(security.size() > 0)
+    {
+        int s = security.size();
+        bool succeed = true;
+        for(int i = 0; i < s; i++)
+        {
+            succeed = succeed && security[i]->attempt();
+            if(!succeed)
+            {
+                break;
+            }
+        }
+
+        if(!succeed)
+        {
+            int f = failures.size();
+            for(int i = 0; i < f; i++)
+            {
+                failures[i]->go();
+            }
+            return;
+        }
+    }
+
+    int a = actions.size();
+    for(int i = 0; i < a; i++)
+    {
+        actions[i]->go();
+    }
+}
+
+void compopt::add_security(compsec *measure)
+{
+    security.push_back(measure);
+}
+
+void compopt::add_action(compact *action)
+{
+    actions.push_back(action);
+}
+
+void compopt::add_failure(compact *action)
+{
+    failures.push_back(action);
+}
+
+void computer::add_compopt(compopt option)
+{
+    this->compopts.push_back(option);
+}
+
+void computer::use(bool test)
+{
+
+    if (w_border == NULL) {
+        w_border = newwin(FULL_SCREEN_HEIGHT, FULL_SCREEN_WIDTH,
+                            (TERMY > FULL_SCREEN_HEIGHT) ? (TERMY-FULL_SCREEN_HEIGHT)/2 : 0,
+                            (TERMX > FULL_SCREEN_WIDTH) ? (TERMX-FULL_SCREEN_WIDTH)/2 : 0);
+    }
+    if (w_terminal == NULL) {
+        w_terminal = newwin(getmaxy(w_border)-2, getmaxx(w_border)-2,
+                            getbegy(w_border)+1, getbegx(w_border)+1);
+    }
+    wborder(w_border, LINE_XOXO, LINE_XOXO, LINE_OXOX, LINE_OXOX,
+            LINE_OXXO, LINE_OOXX, LINE_XXOO, LINE_XOOX );
+    wrefresh(w_border);
+
+    // Login
+    print_line(_("Logging into %s..."), name.c_str());
+    if(test)
+    {
+        print_line(_("This is a test..."));
+    }
+
+    // Main computer loop
+    for (bool InUse = true; InUse; )
+    {
+        print_newline();
+        print_line("%s - %s", name.c_str(), _("Root Menu"));
+        for (int i = 0; i < compopts.size(); i++)
+        {
+            print_line("%d - %s", i + 1, compopts[i].prompt.c_str());
+        }
+        print_line("Q - %s", _("Quit and shut down"));
+        print_newline();
+
+        char ch;
+        do
+        {
+            ch = getch();
+        }
+        while (ch != 'q' && ch != 'Q' && (ch < '1' || ch - '1' >= compopts.size()));
+
+        if (ch == 'q' || ch == 'Q')
+        {
+            InUse = false;
+        }
+        else   // We selected an option other than quit.
+        {
+            ch -= '1'; // So '1' -> 0; index in options.size()
+            compopts[ch].go();
+            reset_terminal();
+        } // Done processing a selected option.
+    }
+
+    shutdown_terminal(); // This should have been done by now, but just in case.
+}
+
 
 std::vector<std::string> computer::lab_notes;
 
@@ -83,6 +331,12 @@ void computer::shutdown_terminal()
 
 void computer::use(game *g)
 {
+    if(g->cur_om->ter(g->om_location().x, g->om_location().y, 0) == ot_shelter)
+    {
+        this->use(true);
+        return;
+    }
+
     if (w_border == NULL) {
         w_border = newwin(FULL_SCREEN_HEIGHT, FULL_SCREEN_WIDTH,
                             (TERMY > FULL_SCREEN_HEIGHT) ? (TERMY-FULL_SCREEN_HEIGHT)/2 : 0,
@@ -953,6 +1207,7 @@ SYSTEM ADMINISTRATOR TO RESOLVE THIS ISSUE.\n\
         break;
 
     case COMPACT_EMERG_MESS:
+        {
         print_line(_("\
 GREETINGS CITIZEN. A BIOLOGICAL ATTACK HAS TAKEN PLACE AND A STATE OF \n\
 EMERGENCY HAS BEEN DECLARED. EMERGENCY PERSONNEL WILL BE AIDING YOU \n\
@@ -966,6 +1221,7 @@ SHORTLY. TO ENSURE YOUR SAFETY PLEASE FOLLOW THE BELOW STEPS. \n\
 \n\
   \n"));
         query_any(_("Press any key to continue..."));
+        }
         break;
 
     case COMPACT_TOWER_UNRESPONSIVE:
@@ -1128,7 +1384,7 @@ SHORTLY. TO ENSURE YOUR SAFETY PLEASE FOLLOW THE BELOW STEPS. \n\
   From:  Ellen Grimes, Director of the EPA\n\
   \n\
       Your site along with many others has been found to be\n\
-  contaminated with what we will now refer to as [redracted].\n\
+  contaminated with what we will now refer to as [redacted].\n\
   It is vital that you standby for further orders.  We are\n\
   currently awaiting the President to decide our course of\n\
   action in this national crisis.  You will proceed with fail-\n\

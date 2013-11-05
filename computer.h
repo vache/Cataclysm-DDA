@@ -82,6 +82,154 @@ struct computer_option
         name (N), action (A), security (S) {};
 };
 
+class compsec
+{
+protected:
+    compsec(){}
+public:
+    virtual ~compsec(){}
+    virtual bool attempt() = 0;
+};
+
+class compsec_pass : public compsec
+{
+public:
+    compsec_pass(std::string password) : pass(password){}
+    ~compsec_pass(){}
+    bool attempt();
+    std::string pass;
+};
+
+class compsec_hack : public compsec
+{
+public:
+    compsec_hack(int difficulty) : diff(difficulty){}
+    ~compsec_hack(){}
+    bool attempt();
+    int diff;
+};
+
+class compsec_item : public compsec
+{
+public:
+    compsec_item(std::string item, int quantity) : it(item), num(quantity){}
+    ~compsec_item(){}
+    bool attempt();
+    std::string it;
+    int num;
+};
+
+class compsec_itemat
+{
+public:
+    compsec_itemat(std::string item, int x, int y) : it(item), itemx(x), itemy(y){}
+    ~compsec_itemat(){}
+    bool attempt();
+    std::string it;
+    int itemx;
+    int itemy;
+};
+
+class compact
+{
+protected:
+    compact(){}
+public:
+    virtual ~compact(){}
+    virtual void go() = 0;
+};
+
+// computer action used to change terrain (open doors)
+class compact_chter : public compact
+{
+public:
+    compact_chter(int x, int y, std::string terrain) : terx(x), tery(y), ter(terrain){}
+    ~compact_chter(){}
+    void go();
+    int terx;
+    int tery;
+    std::string ter;
+};
+
+// computer action to display message
+class compact_msg : public compact
+{
+public:
+    compact_msg(std::string message) : msg(message) {}
+    ~compact_msg(){}
+    void go();
+    std::string msg;
+};
+
+// computer action to change level (elevator)
+class compact_chlvl : public compact
+{
+public:
+    compact_chlvl(int lvls) : z(lvls) {}
+    ~compact_chlvl(){}
+    void go();
+    int z;
+};
+
+class compact_noise : public compact
+{
+public:
+    compact_noise(int volume, std::string description) : vol(volume), desc(description) {}
+    ~compact_noise(){}
+    void go();
+    int vol;
+    std::string desc;
+};
+
+class compact_mon : public compact
+{
+public:
+    compact_mon(int x, int y, std::string monster) : monx(x), mony(y), mon(monster) {}
+    ~compact_mon(){}
+    void go();
+    int monx;
+    int mony;
+    std::string mon;
+};
+
+class compact_item : public compact
+{
+public:
+    compact_item(int x, int y, std::string item) : itemx(x), itemy(y), it(item) {}
+    ~compact_item(){}
+    void go();
+    int itemx;
+    int itemy;
+    std::string it;
+};
+
+class compact_map : public compact
+{
+public:
+    compact_map(int radius, int zlvl, std::vector<int> omtypes = std::vector<int>()) : rad(radius), z(zlvl), types(omtypes){}
+    ~compact_map(){}
+    void go();
+    int rad;
+    int z;
+    std::vector<int> types;
+};
+
+class compopt
+{
+public:
+    compopt(std::string msg) : prompt(msg) {}
+    ~compopt(){}
+    void go();
+    void add_security(compsec*);
+    void add_action(compact*);
+    void add_failure(compact*);
+
+    std::vector<compsec*> security;
+    std::vector<compact*> actions;
+    std::vector<compact*> failures;
+    std::string prompt;
+};
+
 class computer
 {
 public:
@@ -90,6 +238,10 @@ public:
     ~computer();
 
     computer & operator=(const computer &rhs);
+
+    void add_compopt(compopt option);
+    void use(bool test);
+
     // Initialization
     void set_security(int Security);
     void add_option(std::string opt_name, computer_action action, int Security);
@@ -108,6 +260,9 @@ public:
     static void load_lab_note(JsonObject &jsobj);
 
 private:
+
+    std::vector<compopt> compopts;
+
     // Difficulty of simply logging in
     int security;
     // Things we can do

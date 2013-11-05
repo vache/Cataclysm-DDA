@@ -1430,7 +1430,8 @@
         "symbol": "6",
         "color": "blue",
         "move_cost": 0,
-        "flags": ["TRANSPARENT", "CONSOLE", "NOITEM", "COLLAPSES", "INDOORS"]
+        "flags": ["TRANSPARENT", "CONSOLE", "NOITEM", "COLLAPSES", "INDOORS"],
+        "examine_action": "console"
     },
     {
         "type": "terrain",

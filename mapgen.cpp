@@ -3997,7 +3997,21 @@ case ot_shelter: {
   mapf::basic_bind("- | + : 6 x >", t_wall_h, t_wall_v, t_door_c, t_window_domestic,  t_console, t_console_broken, t_stairs_down),
   mapf::basic_bind("b c l", f_bench, f_counter, f_locker));
   tmpcomp = add_computer(SEEX+6, 5, _("Evac shelter computer"), 0);
-  tmpcomp->add_option(_("Emergency Message"), COMPACT_EMERG_MESS, 0);
+  //tmpcomp->add_option(_("Emergency Message"), COMPACT_EMERG_MESS, 0);
+  compopt opt("View Evacuation Test Message");
+  opt.add_action(new compact_msg(_("Testing!")));
+  opt.add_action(new compact_map(60, 0));
+  compopt optb("Get a free gask mask!");
+  int x = 19;
+  int y = 6;
+  optb.add_action(new compact_item(x+47, y+60, "mask_gas"));
+  compopt opc("Add a column");
+  x = 17;
+  y = 16;
+  opc.add_action(new compact_chter(x+47, y+60, "t_column"));
+  tmpcomp->add_compopt(opt);
+  tmpcomp->add_compopt(optb);
+  tmpcomp->add_compopt(opc);
  }
 
   break;
