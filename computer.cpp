@@ -6,14 +6,32 @@
 #include "json.h"
 #include "monstergenerator.h"
 #include "item_factory.h"
+#include "helper.h"
 #include <fstream>
 #include <string>
 #include <sstream>
+
+compsec_pass::compsec_pass(std::stringstream& stream)
+{
+    stream >> pass;
+}
 
 bool compsec_pass::attempt()
 {
     std::string input = string_input_popup(_("Enter Password"), 256);
     return (input == pass);
+}
+
+std::string compsec_pass::save()
+{
+    std::stringstream data;
+    data << "pass " << helper::space_to_underscore(pass) << " ";
+    return data.str();
+}
+
+compsec_hack::compsec_hack(std::stringstream &stream)
+{
+    stream >> diff;
 }
 
 bool compsec_hack::attempt()
@@ -33,6 +51,18 @@ bool compsec_hack::attempt()
     return (dice(player_roll, 6) >= dice(diff, 6));
 }
 
+std::string compsec_hack::save()
+{
+    std::stringstream data;
+    data << "hack " << diff << " ";
+    return data.str();
+}
+
+compsec_item::compsec_item(std::stringstream &stream)
+{
+    stream >> it >> num;
+}
+
 bool compsec_item::attempt()
 {
     if(g->u.has_amount(it, num))
@@ -46,9 +76,21 @@ bool compsec_item::attempt()
     }
 }
 
+std::string compsec_item::save()
+{
+    std::stringstream data;
+    data << "item " << it << " " << num << " ";
+    return data.str();
+}
+
+compsec_itemat::compsec_itemat(std::stringstream &stream)
+{
+    stream >> it >> itemx >> itemy;
+}
+
 bool compsec_itemat::attempt()
 {
-    std::vector<item> items = g->m.i_at(itemx, itemy);
+    std::vector<item> items = g->m.i_at(c->compx + itemx, c->compy + itemy);
 
     for(int i = 0; i < items.size(); i++)
     {
@@ -61,14 +103,52 @@ bool compsec_itemat::attempt()
     return false;
 }
 
+std::string compsec_itemat::save()
+{
+    std::stringstream data;
+    data << "itemat " << it << " " << itemx << " " << itemy << " ";
+    return data.str();
+}
+
+compact_chter::compact_chter(std::stringstream &stream)
+{
+    stream >> terx >> tery >> ter;
+}
+
 void compact_chter::go()
 {
-    g->m.ter_set(terx, tery, ter);
+    g->m.ter_set(c->compx + terx, c->compy + tery, ter);
+}
+
+std::string compact_chter::save()
+{
+    std::stringstream data;
+    data << "cht " << terx << " " << tery << " " << ter << " ";
+    return data.str();
+}
+
+compact_msg::compact_msg(std::stringstream &stream)
+{
+    stream >> msg;
+    msg = helper::underscore_to_space(msg);
 }
 
 void compact_msg::go()
 {
-    g->add_msg(msg.c_str());
+    c->reset_terminal();
+    c->print_text(msg.c_str());
+}
+
+std::string compact_msg::save()
+{
+    std::stringstream data;
+    data << "msg " << helper::space_to_underscore(msg) << " ";
+    return data.str();
+}
+
+compact_chlvl::compact_chlvl(std::stringstream &stream)
+{
+    stream >> z;
 }
 
 void compact_chlvl::go()
@@ -76,23 +156,78 @@ void compact_chlvl::go()
     g->vertical_move(z, false);
 }
 
+std::string compact_chlvl::save()
+{
+    std::stringstream data;
+    data << "chz " << z << " ";
+    return data.str();
+}
+
+compact_noise::compact_noise(std::stringstream &stream)
+{
+    stream >> vol >> desc;
+    desc = helper::underscore_to_space(desc);
+}
+
 void compact_noise::go()
 {
     g->sound(g->u.posx, g->u.posy, vol, desc);
 }
 
+std::string compact_noise::save()
+{
+    std::stringstream data;
+    data << "snd " << vol << " " << helper::space_to_underscore(desc) << " ";
+    return data.str();
+}
+
+compact_mon::compact_mon(std::stringstream &stream)
+{
+    stream >> monx >> mony >> mon;
+}
+
 void compact_mon::go()
 {
     monster newmon(GetMType(mon));
-    newmon.spawn(monx, mony);
+    newmon.spawn(c->compx + monx, c->compy + mony);
     g->add_zombie(newmon);
+}
+
+std::string compact_mon::save()
+{
+    std::stringstream data;
+    data << "mon " << monx << " " << mony << " " << mon << " ";
+    return data.str();
+}
+
+compact_item::compact_item(std::stringstream &stream)
+{
+    stream >> itemx >> itemy >> it;
 }
 
 void compact_item::go()
 {
     item new_item = item_controller->create(it, (int)g->turn);
-    //point p =  g->m.getlocal(itemx, itemy);
-    g->m.add_item(itemx, itemy, new_item);
+    g->m.add_item(c->compx + itemx, c->compy + itemy, new_item);
+}
+
+std::string compact_item::save()
+{
+    std::stringstream data;
+    data << "itm " << itemx << " " << itemy << " " << it << " ";
+    return data.str();
+}
+
+compact_map::compact_map(std::stringstream &stream)
+{
+    int numtypes;
+    stream >> rad >> z >> numtypes;
+    for(int i = 0; i < numtypes; i++)
+    {
+        int val;
+        stream >> val;
+        types.push_back(val);
+    }
 }
 
 void compact_map::go()
@@ -146,6 +281,89 @@ void compact_map::go()
     }
 }
 
+std::string compact_map::save()
+{
+    std::stringstream data;
+    data << "map " << rad << " " << z << " " << types.size() << " ";
+    for(int i = 0; i < types.size(); i++)
+    {
+        data << int(types[i]) << " ";
+    }
+    return data.str();
+}
+
+compopt::compopt(std::stringstream &stream)
+{
+    int numsec, numact, numfail;
+    stream >> prompt >> numsec ;
+    prompt = helper::underscore_to_space(prompt);
+    for(int k = 0; k < numsec; k++)
+    {
+        std::string security;
+        stream >> security;
+        if(security == "pass")
+        {
+            add_security(new compsec_pass(stream));
+        }
+        if(security == "item")
+        {
+            add_security(new compsec_item(stream));
+        }
+        if(security == "hack")
+        {
+            add_security(new compsec_hack(stream));
+        }
+        if(security == "itemat")
+        {
+            add_security(new compsec_itemat(stream));
+        }
+    }
+    stream >> numact;
+    for(int i = 0; i < numact; i++)
+    {
+        std::string action;
+        stream >> action;
+        if(action == "cht")
+        {
+            add_action(new compact_chter(stream));
+        }
+        if(action == "msg")
+        {
+            add_action(new compact_msg(stream));
+        }
+        if(action == "map")
+        {
+            add_action(new compact_map(stream));
+        }
+        if(action == "itm")
+        {
+            add_action(new compact_item(stream));
+        }
+    }
+    stream >> numfail;
+    for(int j = 0; j < numfail; j++)
+    {
+        std::string action;
+        stream >> action;
+        if(action == "cht")
+        {
+            add_failure(new compact_chter(stream));
+        }
+        if(action == "msg")
+        {
+            add_failure(new compact_msg(stream));
+        }
+        if(action == "map")
+        {
+            add_failure(new compact_map(stream));
+        }
+        if(action == "itm")
+        {
+            add_failure(new compact_item(stream));
+        }
+    }
+}
+
 void compopt::go()
 {
     if(security.size() > 0)
@@ -194,8 +412,47 @@ void compopt::add_failure(compact *action)
     failures.push_back(action);
 }
 
+std::string compopt::save()
+{
+    std::stringstream data;
+    data << helper::space_to_underscore(prompt) << " " << security.size() << " ";
+    for(int i = 0; i < security.size(); i++)
+    {
+        data << security[i]->save();
+    }
+    data << actions.size() << " ";
+    for(int i = 0; i < actions.size(); i++)
+    {
+        data << actions[i]->save();
+    }
+    data << failures.size() << " ";
+    for(int i = 0; i < failures.size(); i++)
+    {
+        data << failures[i]->save();
+    }
+    return data.str();
+}
+
+void compopt::set_computer(computer *comp)
+{
+    c = comp;
+    for(int i = 0; i < security.size(); i++)
+    {
+        security[i]->set_computer(comp);
+    }
+    for(int i = 0; i < actions.size(); i++)
+    {
+        actions[i]->set_computer(comp);
+    }
+    for(int i = 0; i < failures.size(); i++)
+    {
+        failures[i]->set_computer(comp);
+    }
+}
+
 void computer::add_compopt(compopt option)
 {
+    option.set_computer(this);\
     this->compopts.push_back(option);
 }
 
@@ -249,6 +506,7 @@ void computer::use(bool test)
         {
             ch -= '1'; // So '1' -> 0; index in options.size()
             compopts[ch].go();
+            query_any(_("Press any key to continue..."));
             reset_terminal();
         } // Done processing a selected option.
     }
@@ -329,8 +587,10 @@ void computer::shutdown_terminal()
     w_border = NULL;
 }
 
-void computer::use(game *g)
+void computer::use(game *g, int x, int y)
 {
+    compx = x;
+    compy = y;
     if(g->cur_om->ter(g->om_location().x, g->om_location().y, 0) == ot_shelter)
     {
         this->use(true);
@@ -473,6 +733,10 @@ bool computer::hack_attempt(game *g, player *p, int Security)
 
 std::string computer::save_data()
 {
+    if(this->compopts.size() != 0)
+    {
+        return save_data(true);
+    }
     std::stringstream data;
     std::string savename = name; // Replace " " with "_"
     size_t found = savename.find(" ");
@@ -504,8 +768,54 @@ std::string computer::save_data()
     return data.str();
 }
 
+std::string computer::save_data(bool test)
+{
+    std::stringstream data;
+    std::string savename = name;
+    size_t found = savename.find(" ");
+    while (found != std::string::npos)
+    {
+        savename.replace(found, 1, "_");
+        found = savename.find(" ");
+    }
+    data << savename << " " << mission_id << " " << compopts.size() << " ";
+    for(int i = 0; i < compopts.size(); i++)
+    {
+        data << compopts[i].save();
+    }
+    return data.str();
+}
+
+// c Evac_shelter_computer -1 3
+// View_Evacuation_Test_Message 0 2 msg Testing! map 60 22 9 10 11 12 13 14 15 16 17 18 19 20 6 7 21 22 137 138 139 140 167 168 0
+// Get_a_free_gask_mask! 0 1 itm 0 1 mask_gas 0
+// Add_a_column 1 1 cht -2 0 t_column 1 msg You_Fail
+void computer::load_data(std::string data, bool test)
+{
+    compopts.clear();
+    std::stringstream dump;
+    dump << data;
+    dump >> name;
+    name = helper::underscore_to_space(name);
+    dump >> mission_id;
+    int numopts;
+    dump >> numopts;
+    for(int i = 0; i < numopts; i++)
+    {
+        compopt newopt = compopt(dump);
+        add_compopt(newopt);
+    }
+}
+
+// type name sec missionid #opts optname enumid optsec failsize failtypes
+// c PolCom_OS_v1.47 3 -1 1 Open_Evidence_Locker 1 3 3 1 2 3
+// c Evac_shelter_computer 0 -1 1 Emergency_Message 24 0 0
 void computer::load_data(std::string data)
 {
+
+    this->load_data(data, true);
+    return;
+
     options.clear();
     failures.clear();
     std::stringstream dump;

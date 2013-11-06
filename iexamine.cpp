@@ -203,7 +203,7 @@ void iexamine::console (game *g, player *p, map *m, int examx, int examy){
 
   computer* comp = m->computer_at(examx, examy);
 
-  comp->use(g);
+  comp->use(g, examx, examy);
  }
 }
 

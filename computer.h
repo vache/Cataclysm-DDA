@@ -82,21 +82,28 @@ struct computer_option
         name (N), action (A), security (S) {};
 };
 
+class computer;
+
 class compsec
 {
 protected:
     compsec(){}
+    computer* c;
 public:
     virtual ~compsec(){}
     virtual bool attempt() = 0;
+    virtual std::string save() = 0;
+    void set_computer(computer* comp){c=comp;}
 };
 
 class compsec_pass : public compsec
 {
 public:
     compsec_pass(std::string password) : pass(password){}
+    compsec_pass(std::stringstream& stream);
     ~compsec_pass(){}
     bool attempt();
+    std::string save();
     std::string pass;
 };
 
@@ -104,8 +111,10 @@ class compsec_hack : public compsec
 {
 public:
     compsec_hack(int difficulty) : diff(difficulty){}
+    compsec_hack(std::stringstream& stream);
     ~compsec_hack(){}
     bool attempt();
+    std::string save();
     int diff;
 };
 
@@ -113,18 +122,22 @@ class compsec_item : public compsec
 {
 public:
     compsec_item(std::string item, int quantity) : it(item), num(quantity){}
+    compsec_item(std::stringstream& stream);
     ~compsec_item(){}
     bool attempt();
+    std::string save();
     std::string it;
     int num;
 };
 
-class compsec_itemat
+class compsec_itemat : public compsec
 {
 public:
     compsec_itemat(std::string item, int x, int y) : it(item), itemx(x), itemy(y){}
+    compsec_itemat(std::stringstream& stream);
     ~compsec_itemat(){}
     bool attempt();
+    std::string save();
     std::string it;
     int itemx;
     int itemy;
@@ -134,9 +147,13 @@ class compact
 {
 protected:
     compact(){}
+
+    computer* c;
 public:
     virtual ~compact(){}
     virtual void go() = 0;
+    virtual std::string save()  = 0;
+    void set_computer(computer* comp){c=comp;}
 };
 
 // computer action used to change terrain (open doors)
@@ -144,8 +161,10 @@ class compact_chter : public compact
 {
 public:
     compact_chter(int x, int y, std::string terrain) : terx(x), tery(y), ter(terrain){}
+    compact_chter(std::stringstream& stream);
     ~compact_chter(){}
     void go();
+    std::string save();
     int terx;
     int tery;
     std::string ter;
@@ -156,8 +175,10 @@ class compact_msg : public compact
 {
 public:
     compact_msg(std::string message) : msg(message) {}
+    compact_msg(std::stringstream& stream);
     ~compact_msg(){}
     void go();
+    std::string save();
     std::string msg;
 };
 
@@ -166,8 +187,10 @@ class compact_chlvl : public compact
 {
 public:
     compact_chlvl(int lvls) : z(lvls) {}
+    compact_chlvl(std::stringstream& stream);
     ~compact_chlvl(){}
     void go();
+    std::string save();
     int z;
 };
 
@@ -175,8 +198,10 @@ class compact_noise : public compact
 {
 public:
     compact_noise(int volume, std::string description) : vol(volume), desc(description) {}
+    compact_noise(std::stringstream& stream);
     ~compact_noise(){}
     void go();
+    std::string save();
     int vol;
     std::string desc;
 };
@@ -185,8 +210,10 @@ class compact_mon : public compact
 {
 public:
     compact_mon(int x, int y, std::string monster) : monx(x), mony(y), mon(monster) {}
+    compact_mon(std::stringstream& stream);
     ~compact_mon(){}
     void go();
+    std::string save();
     int monx;
     int mony;
     std::string mon;
@@ -196,8 +223,10 @@ class compact_item : public compact
 {
 public:
     compact_item(int x, int y, std::string item) : itemx(x), itemy(y), it(item) {}
+    compact_item(std::stringstream& stream);
     ~compact_item(){}
     void go();
+    std::string save();
     int itemx;
     int itemy;
     std::string it;
@@ -207,22 +236,32 @@ class compact_map : public compact
 {
 public:
     compact_map(int radius, int zlvl, std::vector<int> omtypes = std::vector<int>()) : rad(radius), z(zlvl), types(omtypes){}
+    compact_map(std::stringstream& stream);
     ~compact_map(){}
     void go();
+    std::string save();
     int rad;
     int z;
     std::vector<int> types;
 };
 
+// todo: traps,fields,resonance cascade,nuke,bionic list,events(amigara),diseases(stem cell treatment),
+// software(download/upload/analysis),explosion,hurt user,empty contents
+
 class compopt
 {
 public:
     compopt(std::string msg) : prompt(msg) {}
+    compopt(std::stringstream& stream);
     ~compopt(){}
     void go();
     void add_security(compsec*);
     void add_action(compact*);
     void add_failure(compact*);
+
+    std::string save();
+    void set_computer(computer*);
+    computer* c;
 
     std::vector<compsec*> security;
     std::vector<compact*> actions;
@@ -241,6 +280,10 @@ public:
 
     void add_compopt(compopt option);
     void use(bool test);
+    std::string save_data(bool);
+    void load_data(std::string data, bool test);
+    friend void compact_msg::go();
+    friend class compopt;
 
     // Initialization
     void set_security(int Security);
@@ -248,7 +291,7 @@ public:
     void add_failure(computer_failure failure);
     // Basic usage
     void shutdown_terminal(); // Shutdown (free w_terminal, etc)
-    void use(game *g);
+    void use(game *g, int x, int y);
     bool hack_attempt(game *g, player *p, int Security = -1);// -1 defaults to main security
     // Save/load
     std::string save_data();
@@ -258,6 +301,9 @@ public:
     int mission_id; // Linked to a mission?
 
     static void load_lab_note(JsonObject &jsobj);
+
+    int compx;
+    int compy;
 
 private:
 
