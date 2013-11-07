@@ -41,4 +41,15 @@ namespace helper
         }
         return output;
     }
+    std::string swap_char(std::string input, char c1, char c2)
+    {
+        std::string output = input; // Replace "_" with " "
+        size_t found = output.find(c1);
+        while (found != std::string::npos)
+        {
+            output.replace(found, 1, 1, c2);
+            found = output.find(c1);
+        }
+        return output;
+    }
 }

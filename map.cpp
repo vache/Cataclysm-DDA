@@ -3156,8 +3156,10 @@ void map::remove_field(const int x, const int y, const field_id field_to_remove)
  const int lx = x % SEEX;
  const int ly = y % SEEY;
  if (grid[nonant]->fld[lx][ly].findField(field_to_remove)) //same as checking for fd_null in the old system
+ {
   grid[nonant]->field_count--;
- grid[nonant]->fld[lx][ly].removeField(field_to_remove);
+  grid[nonant]->fld[lx][ly].removeField(field_to_remove);
+ }
 }
 
 computer* map::computer_at(const int x, const int y)

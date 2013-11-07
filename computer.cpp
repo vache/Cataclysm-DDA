@@ -94,8 +94,7 @@ bool compsec_itemat::attempt()
 
     for(int i = 0; i < items.size(); i++)
     {
-        item *itemat = &items.at(i);
-        if(itemat->name == it)
+        if(items[i].type->id == it)
         {
             return true;
         }
@@ -130,7 +129,7 @@ std::string compact_chter::save()
 compact_msg::compact_msg(std::stringstream &stream)
 {
     stream >> msg;
-    msg = helper::underscore_to_space(msg);
+    msg = helper::swap_char(helper::underscore_to_space(msg), '|', '\n');
 }
 
 void compact_msg::go()
@@ -142,7 +141,7 @@ void compact_msg::go()
 std::string compact_msg::save()
 {
     std::stringstream data;
-    data << "msg " << helper::space_to_underscore(msg) << " ";
+    data << "msg " << helper::swap_char(helper::space_to_underscore(msg), '\n', '|') << " ";
     return data.str();
 }
 
@@ -292,6 +291,135 @@ std::string compact_map::save()
     return data.str();
 }
 
+compact_trap::compact_trap(std::stringstream &stream)
+{
+    stream >> trapx >> trapy >> t;
+}
+
+void compact_trap::go()
+{
+    g->m.add_trap(trapx+c->compx, trapy+c->compy, (trap_id)t);
+}
+
+std::string compact_trap::save()
+{
+    std::stringstream data;
+    data << "trp " << trapx << " " << trapy << " " << t << " ";
+    return data.str();
+}
+
+compact_remtrap::compact_remtrap(std::stringstream &stream)
+{
+    stream >> trapx >> trapy;
+}
+
+void compact_remtrap::go()
+{
+    g->m.remove_trap(trapx + c->compx, trapy + c->compy);
+}
+
+std::string compact_remtrap::save()
+{
+    std::stringstream data;
+    data << "rmt " << trapx << " " << trapy << " ";
+    return data.str();
+}
+
+compact_field::compact_field(std::stringstream &stream)
+{
+    stream >> fieldx >> fieldy >> f >> den;
+}
+
+void compact_field::go()
+{
+    g->m.add_field(g, fieldx+c->compx, fieldy+c->compy, (field_id)f, den);
+}
+
+std::string compact_field::save()
+{
+    std::stringstream data;
+    data << "fld " << fieldx << " " << fieldy << " " << f << " " << den << " ";
+    return data.str();
+}
+
+compact_remfield::compact_remfield(std::stringstream &stream)
+{
+    stream >> fieldx >> fieldy >> f;
+}
+
+void compact_remfield::go()
+{
+    g->m.remove_field(fieldx + c->compx, fieldy + c->compy, (field_id)f);
+}
+
+std::string compact_remfield::save()
+{
+    std::stringstream data;
+    data << "rmf " << fieldx << " " << fieldy << " " << f << " ";
+    return data.str();
+}
+
+compact_exp::compact_exp(std::stringstream &stream)
+{
+    stream >> expx >> expy >> pwr >> shrap >> fire;
+}
+
+void compact_exp::go()
+{
+    g->explosion(expx+c->compx, expy+c->compx, pwr, shrap, fire);
+}
+
+std::string compact_exp::save()
+{
+    std::stringstream data;
+    data << "exp " << expx << " " << expy << " " << pwr << " " << shrap << " " << fire << " ";
+    return data.str();
+}
+
+compact_hurt::compact_hurt(std::stringstream &stream)
+{
+    stream >> min >> max;
+}
+
+void compact_hurt::go()
+{
+    g->u.hurtall(rng(min, max));
+}
+
+std::string compact_hurt::save()
+{
+    std::stringstream data;
+    data << "hrt " << min << " " << max << " ";
+    return data.str();
+}
+
+compact_killmon::compact_killmon(std::stringstream &stream)
+{
+    stream >> tlx >> tly >> brx >> bry;
+}
+
+void compact_killmon::go()
+{
+    for(int i = tlx + c->compx; i <= brx + c->compx; i++)
+    {
+        for(int j = tly + c->compy; j <= bry + c->compy; j++)
+        {
+            int mondex = g->mon_at(i, j);
+            if(mondex != -1)
+            {
+                g->kill_mon(mondex, true);
+            }
+        }
+    }
+}
+
+std::string compact_killmon::save()
+{
+    std::stringstream data;
+    data << "kil " << tlx << " " << tly << " " << brx << " " << bry << " ";
+    return data.str();
+}
+
 compopt::compopt(std::stringstream &stream)
 {
     int numsec, numact, numfail;
@@ -339,6 +467,46 @@ compopt::compopt(std::stringstream &stream)
         {
             add_action(new compact_item(stream));
         }
+        if(action == "mon")
+        {
+            add_action(new compact_mon(stream));
+        }
+        if(action == "chz")
+        {
+            add_action(new compact_chlvl(stream));
+        }
+        if(action == "snd")
+        {
+            add_action(new compact_noise(stream));
+        }
+        if(action == "kil")
+        {
+            add_action(new compact_killmon(stream));
+        }
+        if(action == "trp")
+        {
+            add_action(new compact_trap(stream));
+        }
+        if(action == "fld")
+        {
+            add_action(new compact_field(stream));
+        }
+        if(action == "exp")
+        {
+            add_action(new compact_exp(stream));
+        }
+        if(action == "hrt")
+        {
+            add_action(new compact_hurt(stream));
+        }
+        if(action == "rmf")
+        {
+            add_action(new compact_remfield(stream));
+        }
+        if(action == "rmt")
+        {
+            add_action(new compact_remtrap(stream));
+        }
     }
     stream >> numfail;
     for(int j = 0; j < numfail; j++)
@@ -360,6 +528,46 @@ compopt::compopt(std::stringstream &stream)
         if(action == "itm")
         {
             add_failure(new compact_item(stream));
+        }
+        if(action == "mon")
+        {
+            add_failure(new compact_mon(stream));
+        }
+        if(action == "chz")
+        {
+            add_failure(new compact_chlvl(stream));
+        }
+        if(action == "snd")
+        {
+            add_failure(new compact_noise(stream));
+        }
+        if(action == "kil")
+        {
+            add_failure(new compact_killmon(stream));
+        }
+        if(action == "trp")
+        {
+            add_failure(new compact_trap(stream));
+        }
+        if(action == "fld")
+        {
+            add_failure(new compact_field(stream));
+        }
+        if(action == "exp")
+        {
+            add_failure(new compact_exp(stream));
+        }
+        if(action == "hrt")
+        {
+            add_failure(new compact_hurt(stream));
+        }
+        if(action == "rmf")
+        {
+            add_failure(new compact_remfield(stream));
+        }
+        if(action == "rmt")
+        {
+            add_failure(new compact_remtrap(stream));
         }
     }
 }

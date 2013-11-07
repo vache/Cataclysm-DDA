@@ -3999,7 +3999,7 @@ case ot_shelter: {
   tmpcomp = add_computer(SEEX+6, 5, _("Evac shelter computer"), 0);
   //tmpcomp->add_option(_("Emergency Message"), COMPACT_EMERG_MESS, 0);
   compopt opt("View Evacuation Test Message");
-  opt.add_action(new compact_msg(_("Testing!")));
+  opt.add_action(new compact_msg(_("Testing!\nUploading roadmap and location of nearby hospitals or police stations.\nPlease proceed to one of these locations for assistance.")));
   std::vector<int> omtypes;
   omtypes.push_back(ot_road_ns);
   omtypes.push_back(ot_road_ew);
@@ -4024,19 +4024,54 @@ case ot_shelter: {
   omtypes.push_back(ot_hospital_entrance);
   omtypes.push_back(ot_hospital);
   opt.add_action(new compact_map(60, 0, omtypes));
-  compopt optb("Get a free gask mask!");
+  compopt optb("Get a free gas mask!");
   int x = 0;
   int y = 1;
   optb.add_action(new compact_item(x, y, "mask_gas"));
-  compopt opc("Add a column");
+  compopt opc("Add a column (Requires gas mask in inventory)");
   x = -2;
   y = 0;
   opc.add_action(new compact_chter(x, y, "t_column"));
+  opc.add_action(new compact_msg("Success!"));
   opc.add_security(new compsec_item("mask_gas", 1));
   opc.add_failure(new compact_msg(_("You Fail")));
+  compopt opd("Hack this to make sound, dont fail or monsters will come!");
+  opd.add_action(new compact_msg("Success!"));
+  opd.add_action(new compact_noise(10, "LOUD NOISES!"));
+  opd.add_security(new compsec_hack(2));
+  opd.add_failure(new compact_mon(0, 5, "mon_zombie"));
+  opd.add_failure(new compact_msg("Failure!"));
+  compopt ope("Place a gas mask (2 south) and type in the password 'bob'");
+  ope.add_security(new compsec_itemat("mask_gas", 0, 2));
+  ope.add_security(new compsec_pass("bob"));
+  ope.add_action(new compact_msg("You did it!"));
+  ope.add_failure(new compact_msg("You did it wrong!"));
+  compopt opf("If you made a zombie come, blast him with this.  You will get caught in the crossfire.");
+  opf.add_action(new compact_msg("Activating Defense Systems"));
+  opf.add_action(new compact_killmon(-12, 0, 0, 12));
+  opf.add_action(new compact_hurt(1, 5));
+  compopt opg("field/trap/explosion (will cause a fire)");
+  opg.add_action(new compact_msg("Look out!"));
+  opg.add_action(new compact_field(-10, 1, fd_smoke, 2));
+  opg.add_action(new compact_trap(-2, 3, tr_bubblewrap));
+  opg.add_action(new compact_exp(-12, 12, 10, 0, true));
+  compopt oph("activate fire suppression system");
+  oph.add_action(new compact_msg("Cleaning up your mess"));
+  for(int i = -16; i <= 4; i++)
+  {
+      for(int j = -4; j <= 16; j++)
+      {
+          oph.add_action(new compact_remfield(i, j, fd_fire));
+      }
+  }
   tmpcomp->add_compopt(opt);
   tmpcomp->add_compopt(optb);
   tmpcomp->add_compopt(opc);
+  tmpcomp->add_compopt(opd);
+  tmpcomp->add_compopt(ope);
+  tmpcomp->add_compopt(opf);
+  tmpcomp->add_compopt(opg);
+  tmpcomp->add_compopt(oph);
  }
 
   break;

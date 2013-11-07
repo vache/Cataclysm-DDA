@@ -156,7 +156,6 @@ public:
     void set_computer(computer* comp){c=comp;}
 };
 
-// computer action used to change terrain (open doors)
 class compact_chter : public compact
 {
 public:
@@ -170,7 +169,6 @@ public:
     std::string ter;
 };
 
-// computer action to display message
 class compact_msg : public compact
 {
 public:
@@ -182,7 +180,6 @@ public:
     std::string msg;
 };
 
-// computer action to change level (elevator)
 class compact_chlvl : public compact
 {
 public:
@@ -245,8 +242,90 @@ public:
     std::vector<int> types;
 };
 
-// todo: traps,fields,resonance cascade,nuke,bionic list,events(amigara),diseases(stem cell treatment),
-// software(download/upload/analysis),explosion,hurt user,empty contents
+class compact_trap : public compact
+{
+public:
+    compact_trap(int x, int y, int trap) : trapx(x), trapy(y), t(trap){}
+    compact_trap(std::stringstream& stream);
+    ~compact_trap() {}
+    void go();
+    std::string save();
+    int trapx, trapy, t;
+};
+
+class compact_remtrap : public compact
+{
+public:
+    compact_remtrap(int x, int y) : trapx(x), trapy(y) {}
+    compact_remtrap(std::stringstream& stream);
+    ~compact_remtrap(){}
+    void go();
+    std::string save();
+    int trapx, trapy;
+};
+
+class compact_field : public compact
+{
+public:
+    compact_field(int x, int y, int field, char density) : fieldx(x), fieldy(y), f(field), den(density) {}
+    compact_field(std::stringstream& stream);
+    ~compact_field() {}
+    void go();
+    std::string save();
+    int fieldx;
+    int fieldy;
+    int f;
+    char den;
+};
+
+class compact_remfield : public compact
+{
+public:
+    compact_remfield(int x, int y, int field) : fieldx(x), fieldy(y), f(field){}
+    compact_remfield(std::stringstream& stream);
+    ~compact_remfield(){}
+    void go();
+    std::string save();
+    int fieldx, fieldy, f;
+};
+
+class compact_exp : public compact
+{
+public:
+    compact_exp(int x, int y, int power, int shrapnel, bool startfire) : expx(x), expy(y), pwr(power), shrap(shrapnel), fire(startfire){}
+    compact_exp(std::stringstream& stream);
+    ~compact_exp(){}
+    void go();
+    std::string save();
+    int expx, expy, pwr, shrap;
+    bool fire;
+};
+
+class compact_hurt : public compact
+{
+public:
+    compact_hurt(int mindamage, int maxdamage) : min(mindamage), max(maxdamage){}
+    compact_hurt(std::stringstream& stream);
+    ~compact_hurt(){}
+    void go();
+    std::string save();
+    int min, max;
+};
+
+class compact_killmon : public compact
+{
+public:
+    compact_killmon(int topleftx, int toplefty, int bottomrightx, int bottomrighty) :
+        tlx(topleftx), tly(toplefty), brx(bottomrightx), bry(bottomrighty) {}
+    compact_killmon(std::stringstream &stream);
+    ~compact_killmon(){}
+    void go();
+    std::string save();
+    int tlx, tly, brx, bry;
+};
+
+// todo: resonance cascade,nuke,bionic list,events(amigara),
+// diseases(stem cell),software(download/upload/analysis/empty contents)
 
 class compopt
 {
