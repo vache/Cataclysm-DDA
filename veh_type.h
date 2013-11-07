@@ -20,10 +20,10 @@ struct vpart_info
     nc_color color_broken;  // color of broken part
     int dmg_mod;            // damage modifier, percent
     int durability;         // durability
+    int power;              // engine (top spd), solar panel/powered component (% of 1 fuel per turn, can be > 100)
     union
     {
         int par1;
-        int power;      // engine (top spd), solar panel (% of 1 fuel per turn, can be > 100)
         int size;       // fuel tank, trunk
         int wheel_width;// wheel width in inches. car could be 9, bicycle could be 2.
         int bonus;      // seatbelt (str), muffler (%), horn (vol)
@@ -36,7 +36,7 @@ struct vpart_info
 
     int z_order;        // z-ordering, inferred from location, cached here
 
-    bool has_flag(const std::string flag) {
+    bool has_flag(const std::string flag) const {
         return flags.count(flag) != 0;
     }
 };

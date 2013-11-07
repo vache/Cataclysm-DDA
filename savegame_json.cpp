@@ -21,7 +21,6 @@
 #include "name.h"
 #include "cursesdef.h"
 #include "catacharset.h"
-#include "catajson.h"
 #include "disease.h"
 #include "crafting.h"
 #include "get_version.h"
@@ -255,6 +254,9 @@ void player::json_load_common_variables( std::map<std::string, picojson::value> 
                     picoint(pdata,"side", tmpill.side);
                     picobool(pdata,"permanent", tmpill.permanent);
                     picoint(pdata,"decay", tmpill.decay);
+                    if (tmpill.type == "ma_buff") {
+                        picostring(pdata, "ma_buff_id", tmpill.buff_id);
+                    }
                     illness.push_back(tmpill);
                 }
             }
@@ -383,6 +385,7 @@ void player::json_save_common_variables( std::map<std::string, picojson::value> 
         ptmpmap[ "side" ] = pv ( illness[i].side );
         ptmpmap[ "permanent" ] = pv ( illness[i].permanent );
         ptmpmap[ "decay" ] = pv ( illness[i].decay );
+        ptmpmap[ "ma_buff_id" ] = pv ( illness[i].buff_id );
         ptmpvect.push_back ( pv ( ptmpmap ) );
         ptmpmap.clear();
     }
@@ -1104,6 +1107,7 @@ bool monster::json_load(picojson::value parsed, std::vector <mtype *> *mtypes)
     picobool(data, "dead", dead);
     picoint(data, "anger", anger);
     picoint(data, "morale", morale);
+    picobool(data, "hallucination", hallucination);
 
     plans.clear();
     picojson::object::const_iterator pvplans_it = data.find("plans");
@@ -1166,6 +1170,7 @@ picojson::value monster::json_save(bool save_contents)
     data["dead"] = pv(dead);
     data["anger"] = pv(anger);
     data["morale"] = pv(morale);
+    data["hallucination"] = pv(hallucination);
 
     if ( plans.size() > 0 ) {
         std::vector<picojson::value> pvplans;
@@ -1410,6 +1415,10 @@ void vehicle::json_load(picojson::value & parsed, game * g ) {
     picoint(data, "cruise_velocity", cruise_velocity);
     picobool(data, "cruise_on", cruise_on);
     picobool(data, "lights_on", lights_on);
+    //Handle old vehicles that don't have this flag
+    if(data.count("overhead_lights_on") > 0) {
+        picobool(data, "overhead_lights_on", overhead_lights_on);
+    }
     picobool(data, "skidding", skidding);
     picoint(data, "turret_mode", turret_mode);
     picojson::object::const_iterator oftcit = data.find("of_turn_carry");
@@ -1467,6 +1476,9 @@ void vehicle::json_load(picojson::value & parsed, game * g ) {
     if ( savegame_loading_version < 11 ) {
         add_missing_frames();
     }
+    find_horns ();
+    find_lights ();
+    find_fuel_tanks ();
     find_exhaust ();
     insides_dirty = true;
     precalc_mounts (0, face.dir());
@@ -1495,8 +1507,10 @@ picojson::value vehicle::json_save( bool save_contents ) {
 
     data["cruise_on"] = pv ( cruise_on );
     data["lights_on"] = pv ( lights_on );
+    data["overhead_lights_on"] = pv (overhead_lights_on);
     data["turret_mode"] = pv ( turret_mode );
     data["skidding"] = pv ( skidding );
+    data["turret_mode"] = pv ( turret_mode );
 
     data["of_turn_carry"] = pv ( of_turn_carry );
     data["name"] = pv ( name );

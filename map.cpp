@@ -14,6 +14,8 @@
 #include "debug.h"
 #include "item_factory.h"
 
+#include "overmapbuffer.h"
+
 #define SGN(a) (((a)<0) ? -1 : 1)
 #define INBOUNDS(x, y) \
  (x >= 0 && x < SEEX * my_MAPSIZE && y >= 0 && y < SEEY * my_MAPSIZE)
@@ -411,6 +413,7 @@ void map::vehmove(game *g)
         for(int v = 0; v < vehs.size(); ++v) {
             vehicle* veh = vehs[v].v;
             veh->gain_moves (abs (veh->velocity));
+            veh->power_parts();
         }
     }
 
@@ -1088,39 +1091,43 @@ int map::combined_movecost(const int x1, const int y1,
 
 bool map::trans(const int x, const int y)
 {
- // Control statement is a problem. Normally returning false on an out-of-bounds
- // is how we stop rays from going on forever.  Instead we'll have to include
- // this check in the ray loop.
- int vpart = -1;
- vehicle *veh = veh_at(x, y, vpart);
- bool tertr;
- if (veh) {
-  tertr = !veh->part_with_feature(vpart, "OPAQUE") || veh->parts[vpart].hp <= 0;
-  if (!tertr) {
-   const int dpart = veh->part_with_feature(vpart, "OPENABLE");
-   if (dpart >= 0 && veh->parts[dpart].open)
-    tertr = true; // open opaque door
-  }
- } else
-  tertr = ( terlist[ter(x, y)].transparent && furnlist[furn(x, y)].transparent );
- if( tertr ){
-  // Fields may obscure the view, too
-  field &curfield = field_at(x,y);
-  if(curfield.fieldCount() > 0){
-  field_entry *cur = NULL;
-   for(std::map<field_id, field_entry*>::iterator field_list_it = curfield.getFieldStart();
-       field_list_it != curfield.getFieldEnd(); ++field_list_it){
-    cur = field_list_it->second;
-    if(cur == NULL) continue;
-    //If ANY field blocks vision, the tile does.
-    if(!fieldlist[cur->getFieldType()].transparent[cur->getFieldDensity() - 1]){
-     return false;
+    // Control statement is a problem. Normally returning false on an out-of-bounds
+    // is how we stop rays from going on forever.  Instead we'll have to include
+    // this check in the ray loop.
+    int vpart = -1;
+    vehicle *veh = veh_at(x, y, vpart);
+    bool tertr;
+    if (veh) {
+        tertr = veh->part_with_feature(vpart, "OPAQUE") < 0;
+        if (!tertr) {
+            const int dpart = veh->part_with_feature(vpart, "OPENABLE");
+            if (veh->parts[dpart].open) {
+                tertr = true; // open opaque door
+            }
+        }
+    } else {
+        tertr = ( terlist[ter(x, y)].transparent && furnlist[furn(x, y)].transparent );
     }
-   }
-  }
-  return true; //no blockers found, this is transparent
- }
- return false; //failsafe block vision
+    if( tertr ) {
+        // Fields may obscure the view, too
+        field &curfield = field_at( x,y );
+        if( curfield.fieldCount() > 0 ) {
+            field_entry *cur = NULL;
+            for( std::map<field_id, field_entry*>::iterator field_list_it = curfield.getFieldStart();
+                 field_list_it != curfield.getFieldEnd(); ++field_list_it ) {
+                cur = field_list_it->second;
+                if( cur == NULL ) {
+                    continue;
+                }
+                //If ANY field blocks vision, the tile does.
+                if(!fieldlist[cur->getFieldType()].transparent[cur->getFieldDensity() - 1]) {
+                    return false;
+                }
+            }
+        }
+        return true; //no blockers found, this is transparent
+    }
+    return false; //failsafe block vision
 }
 
 bool map::has_flag(std::string flag, const int x, const int y)
@@ -1247,9 +1254,7 @@ bool map::has_adjacent_furniture(const int x, const int y)
     {
         const int adj_x = x + cx[i];
         const int adj_y = y + cy[i];
-        furn_id fid = furn(adj_x, adj_y);
-        if ( fid == f_fridge || fid == f_glass_fridge || fid == f_dresser ||
-            fid == f_rack || fid == f_bookcase || fid == old_f_locker ) {
+        if ( has_furn(adj_x, adj_y) && furn_at(adj_x, adj_y).has_flag("BLOCKSDOOR") ) {
             return true;
         }
     }
@@ -1301,146 +1306,94 @@ bool map::bash(const int x, const int y, const int str, std::string &sound, int 
   return true;
  }
 
-switch (oldfurn(x, y)) {
- case old_f_locker:
- case old_f_rack:
-  result = rng(0, 30);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("metal screeching!");
-   furn_set(x, y, f_null);
-   spawn_item(x, y, "scrap", 0, rng(2, 8));
-   const int num_boards = rng(0, 3);
-   for (int i = 0; i < num_boards; i++)
-    spawn_item(x, y, "steel_chunk", 0);
-   spawn_item(x, y, "pipe", 0);
-   return true;
-  } else {
-   sound += _("clang!");
-   return true;
+/////
+bool jsfurn = false;
+bool jster = false;
+map_bash_info * bash = NULL;
+
+if ( has_furn(x, y) && furn_at(x, y).bash.str_max != -1 ) {
+  bash = &(furn_at(x,y).bash);
+  jsfurn = true;
+} else if ( ter_at(x, y).bash.str_max != -1 ) {
+  bash = &(ter_at(x,y).bash);
+  jster = true;
+}
+
+if ( bash != NULL && bash->num_tests > 0 && bash->str_min != -1 ) {
+  bool success = ( bash->chance == -1 || rng(0, 100) >= bash->chance );
+  if ( success == true ) {
+     int smin = bash->str_min;
+     int smax = bash->str_max;
+     if ( bash->str_min_blocked != -1 || bash->str_max_blocked != -1 ) {
+         if( has_adjacent_furniture(x, y) ) {
+             if ( bash->str_min_blocked != -1 ) smin = bash->str_min_blocked;
+             if ( bash->str_max_blocked != -1 ) smax = bash->str_max_blocked;
+         }
+     }
+     if ( str >= smin ) {
+        // roll min_str-max_str;
+        smin = ( bash->str_min_roll != -1 ? bash->str_min_roll : smin );
+        // min_str is a qualifier, but roll 0-max; same delay as before
+        //   smin = ( bash->str_min_roll != -1 ? bash->str_min_roll : 0 );
+
+        for( int i=0; i < bash->num_tests; i++ ) {
+            result = rng(smin, smax);
+            // g->add_msg("bash[%d/%d]: %d >= %d (%d/%d)", i+1,bash->num_tests, str, result,smin,smax);
+            if (i == 0 && res) *res = result;
+            if (str < result) {
+                success = false;
+                break;
+            }
+        }
+     } else {
+        // g->add_msg("bash[%d]: %d >= (%d/%d)", bash->num_tests, str,smin,smax);
+        // todo; bash->sound_too_weak = "feeble whump" ?
+        success = false;
+     }
   }
-  break;
+  if ( success == true ) {
+     int bday=int(g->turn);
+     sound += _(bash->sound.c_str());
+     if ( jsfurn == true ) {
+        furn_set(x,y, f_null);
+     }
+     if ( bash->ter_set.size() > 0 ) {
+        ter_set(x, y, bash->ter_set );
+     } else if ( jster == true ) {
+        debugmsg("data/json/terrain.json does not have %s.bash.ter_set set!",ter_at(x,y).id.c_str());
+     }
+     for (int i = 0; i < bash->items.size(); i++) {
+        int chance = bash->items[i].chance;
+        if ( chance == -1 || rng(0, 100) >= chance ) {
+           int numitems = bash->items[i].amount;
 
- case old_f_oven:
-  result = rng(0, 30);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("metal screeching!");
-   furn_set(x, y, f_null);
-   spawn_item(x, y, "scrap",       0, rng(0, 6));
-   spawn_item(x, y, "steel_chunk", 0, rng(0, 3));
-   spawn_item(x, y, "element", 0, rng(1, 3));
-   spawn_item(x, y, "sheet_metal", 0, 0, rng(2, 6));
-   spawn_item(x, y, "cable", 0, 0, rng(1,3));
-   spawn_item(x, y, "pilot_light", 0);
-
-   return true;
+           if ( bash->items[i].minamount != -1 ) {
+              numitems = rng( bash->items[i].minamount, bash->items[i].amount );
+           }
+           // g->add_msg(" it: %d/%d, == %d",bash->items[i].minamount, bash->items[i].amount,numitems);
+           if ( numitems > 0 ) {
+              // spawn_item(x,y, bash->items[i].itemtype, numitems); // doesn't abstract amount || charges
+              item new_item = item_controller->create(bash->items[i].itemtype, bday);
+              if ( new_item.count_by_charges() ) {
+                  new_item.charges = numitems;
+                  numitems = 1;
+              }
+              for(int a = 0; a < numitems; a++ ) {
+                  add_item_or_charges(x, y, new_item);
+              }
+           }
+        }
+     }
+     return true;
   } else {
-   sound += _("clang!");
-   return true;
+     sound += _(bash->sound_fail.c_str());
+     return true;
   }
- break;
-
- case old_f_sink:
- case old_f_toilet:
- case old_f_bathtub:
-  result = dice(8, 4) - 8;
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("porcelain breaking!");
-   furn_set(x, y, f_null);
-   if(one_in(2)) { spawn_item(x, y, "cu_pipe", 0); }
-   return true;
-  } else {
-   sound += _("whunk!");
-   return true;
-  }
-  break;
-
- case old_f_pool_table:
- case old_f_bulletin:
- case old_f_dresser:
- case old_f_bookcase:
- case old_f_counter:
- case old_f_table:
-  result = rng(0, 45);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("smash!");
-   furn_set(x, y, f_null);
-   spawn_item(x, y, "2x4", 0, rng(2, 6));
-   spawn_item(x, y, "nail", 0, 0, rng(4, 12));
-   spawn_item(x, y, "splinter", 0);
-   return true;
-  } else {
-   sound += _("whump.");
-   return true;
-  }
-  break;
-
- case old_f_fridge:
- case old_f_glass_fridge:
-  result = rng(0, 30);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("metal screeching!");
-   furn_set(x, y, f_null);
-   spawn_item(x, y, "scrap", 0, rng(2, 8));
-   const int num_boards = rng(0, 3);
-   for (int i = 0; i < num_boards; i++)
-    spawn_item(x, y, "steel_chunk", 0);
-   spawn_item(x, y, "hose", 0);
-   spawn_item(x, y, "cu_pipe", 0, rng(2, 5));
-   return true;
-  } else {
-   sound += _("clang!");
-   return true;
-  }
-  break;
-
- case old_f_bench:
- case old_f_chair:
- case old_f_desk:
- case old_f_cupboard:
-  result = rng(0, 30);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("smash!");
-   furn_set(x, y, f_null);
-   spawn_item(x, y, "2x4", 0, rng(1, 3));
-   spawn_item(x, y, "nail", 0, 0, rng(2, 6));
-   spawn_item(x, y, "splinter", 0);
-   return true;
-  } else {
-   sound += _("whump.");
-   return true;
-  }
-  break;
-
- case old_f_crate_c:
- case old_f_crate_o:
-  result = rng(4, 20);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("smash!");
-   furn_set(x, y, f_null);
-   spawn_item(x, y, "2x4", 0, rng(1, 5));
-   spawn_item(x, y, "nail", 0, 0, rng(2, 10));
-   return true;
-  } else {
-   sound += _("wham!");
-   return true;
-  }
-  break;
-
- case old_f_skin_wall:
- case old_f_skin_door:
- case old_f_skin_door_o:
- case old_f_skin_groundsheet:
- case old_f_canvas_wall:
- case old_f_canvas_door:
- case old_f_canvas_door_o:
- case old_f_groundsheet:
+} else {
+ furn_id furnid = furn(x, y);
+ if ( furnid == old_f_skin_wall || furnid == f_skin_door || furnid == f_skin_door_o ||
+      furnid == f_skin_groundsheet || furnid == f_canvas_wall || furnid == f_canvas_door ||
+      furnid == f_canvas_door_o || furnid == f_groundsheet ) {
   result = rng(0, 6);
   if (res) *res = result;
   if (str >= result)
@@ -1459,7 +1412,7 @@ switch (oldfurn(x, y)) {
      }
    // Never found tent center, bail out
    if (tentx == -1 && tenty == -1)
-    break;
+    return true;
    // Take the tent down
    for (int i = -1; i <= 1; i++)
     for (int j = -1; j <= 1; j++) {
@@ -1476,407 +1429,8 @@ switch (oldfurn(x, y)) {
    sound += _("slap!");
    return true;
   }
-  break;
-}
-
-switch (oldter(x, y)) {
- case old_t_chainfence_v:
- case old_t_chainfence_h:
-  result = rng(0, 50);
-  if (res) *res = result;
-  if (str >= result && str >= rng(0, 50)) {
-   sound += _("clang!");
-   ter_set(x, y, t_chainfence_posts);
-   spawn_item(x, y, "wire", 0, rng(8, 20));
-   return true;
-  } else {
-   sound += _("clang!");
-   return true;
-  }
-  break;
-
- case old_t_wall_wood:
-  result = rng(0, 120);
-  if (res) *res = result;
-  if (str >= result && str >= rng(0, 120)) {
-   sound += _("crunch!");
-   ter_set(x, y, t_wall_wood_chipped);
-   if(one_in(2))
-    spawn_item(x, y, "2x4", 0);
-   spawn_item(x, y, "nail", 0, 0, 2);
-   spawn_item(x, y, "splinter", 0);
-   return true;
-  } else {
-   sound += _("whump!");
-   return true;
-  }
-  break;
-
- case old_t_wall_wood_chipped:
-  result = rng(0, 100);
-  if (res) *res = result;
-  if (str >= result && str >= rng(0, 100)) {
-   sound += _("crunch!");
-   ter_set(x, y, t_wall_wood_broken);
-   spawn_item(x, y, "2x4", 0, rng(1, 4));
-   spawn_item(x, y, "nail", 0, 0, rng(1, 3));
-   spawn_item(x, y, "splinter", 0);
-   return true;
-  } else {
-   sound += _("whump!");
-   return true;
-  }
-  break;
-
- case old_t_wall_wood_broken:
-  result = rng(0, 80);
-  if (res) *res = result;
-  if (str >= result && str >= rng(0, 80)) {
-   sound += _("crash!");
-   ter_set(x, y, t_dirt);
-   spawn_item(x, y, "2x4", 0, rng(2, 5));
-   spawn_item(x, y, "nail", 0, 0, rng(4, 10));
-   spawn_item(x, y, "splinter", 0);
-   if(one_in(10)) { spawn_item(x, y, "cu_pipe", 0); }
-   return true;
-  } else {
-   sound += _("whump!");
-   return true;
-  }
-  break;
-
-case old_t_palisade:
-case old_t_palisade_gate:
-  result = rng(0, 120);
-  if (res) *res = result;
-  if (str >= result && str >= rng(0, 120)) {
-   sound += _("crunch!");
-   ter_set(x, y, t_pit);
-   if(one_in(2))
-   spawn_item(x, y, "splinter", 0, 20);
-   return true;
-  } else {
-   sound += _("whump!");
-   return true;
-  }
-  break;
-
-case old_t_wall_log:
-  result = rng(0, 120);
-  if (res) *res = result;
-  if (str >= result && str >= rng(0, 120)) {
-   sound += _("crunch!");
-   ter_set(x, y, t_wall_log_chipped);
-   if(one_in(2))
-   spawn_item(x, y, "splinter", 0, 3);
-   return true;
-  } else {
-   sound += _("whump!");
-   return true;
-  }
-  break;
-
- case old_t_wall_log_chipped:
-  result = rng(0, 100);
-  if (res) *res = result;
-  if (str >= result && str >= rng(0, 100)) {
-   sound += _("crunch!");
-   ter_set(x, y, t_wall_log_broken);
-   spawn_item(x, y, "splinter", 0, 5);
-   return true;
-  } else {
-   sound += _("whump!");
-   return true;
-  }
-  break;
-
- case old_t_wall_log_broken:
-  result = rng(0, 80);
-  if (res) *res = result;
-  if (str >= result && str >= rng(0, 80)) {
-   sound += _("crash!");
-   ter_set(x, y, t_dirt);
-   spawn_item(x, y, "splinter", 0, 5);
-   return true;
-  } else {
-   sound += _("whump!");
-   return true;
-  }
-  break;
-
-
- case old_t_chaingate_c:
- case old_t_chaingate_l:
-  result = rng(0, has_adjacent_furniture(x, y) ? 80 : 100);
-  if (res) *res = result;
-  if (str >= result && str >= rng(0, 80)) {
-   sound += _("clang!");
-   ter_set(x, y, t_dirt);
-   spawn_item(x, y, "wire", 0, rng(8, 20));
-   spawn_item(x, y, "scrap", 0, rng(0, 12));
-   return true;
-  } else {
-   sound += _("whump!");
-   return true;
-  }
-  break;
-
-  case old_t_fencegate_c:
-  result = rng(0, has_adjacent_furniture(x, y) ? 30 : 40);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("crash!");
-   ter_set(x, y, t_dirtfloor);
-   spawn_item(x, y, "2x4", 0, rng(1, 4));
-   spawn_item(x, y, "nail", 0, 0, rng(2, 12));
-   spawn_item(x, y, "splinter", 0);
-   return true;
-  } else {
-   sound += _("wham!");
-   return true;
-  }
-  break;
-
- case old_t_door_c:
- case old_t_door_locked:
- case old_t_door_locked_alarm:
-  result = rng(0, has_adjacent_furniture(x, y) ? 40 : 50);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("smash!");
-   ter_set(x, y, t_door_b);
-   return true;
-  } else {
-   sound += _("whump!");
-   return true;
-  }
-  break;
-
- case old_t_door_b:
-  result = rng(0, has_adjacent_furniture(x, y) ? 30 : 40);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("crash!");
-   ter_set(x, y, t_door_frame);
-   spawn_item(x, y, "2x4", 0, rng(1, 6));
-   spawn_item(x, y, "nail", 0, 0, rng(2, 12));
-   spawn_item(x, y, "splinter", 0);
-   return true;
-  } else {
-   sound += _("wham!");
-   return true;
-  }
-  break;
-
- case old_t_window_domestic:
- case old_t_curtains:
- case old_t_window_domestic_taped:
-  result = rng(0, 6);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("glass breaking!");
-   ter_set(x, y, t_window_frame);
-  spawn_item(x, y, "sheet", 0, 2);
-  spawn_item(x, y, "stick", 0);
-  spawn_item(x, y, "string_36", 0);
-   return true;
-  } else {
-   sound += _("whack!");
-   return true;
-  }
-  break;
-
- case old_t_window:
- case old_t_window_alarm:
- case old_t_window_alarm_taped:
- case old_t_window_taped:
-  result = rng(0, 6);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("glass breaking!");
-   ter_set(x, y, t_window_frame);
-   return true;
-  } else {
-   sound += _("whack!");
-   return true;
-  }
-  break;
-
- case old_t_door_boarded:
-  result = rng(0, has_adjacent_furniture(x, y) ? 50 : 60);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("crash!");
-   ter_set(x, y, t_door_frame);
-   spawn_item(x, y, "2x4", 0, rng(1, 6));
-   spawn_item(x, y, "nail", 0, 0, rng(2, 12));
-   spawn_item(x, y, "splinter", 0);
-   return true;
-  } else {
-   sound += _("wham!");
-   return true;
-  }
-  break;
-
- case old_t_window_boarded:
-  result = rng(0, 30);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("crash!");
-   ter_set(x, y, t_window_frame);
-   const int num_boards = rng(0, 2) * rng(0, 1);
-   for (int i = 0; i < num_boards; i++)
-    spawn_item(x, y, "splinter", 0);
-   return true;
-  } else {
-   sound += _("wham!");
-   return true;
-  }
-  break;
-
- case old_t_paper:
-  result = dice(1, 6) - 2;
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("rrrrip!");
-   ter_set(x, y, t_dirt);
-   return true;
-  } else {
-   sound += _("slap!");
-   return true;
-  }
-  break;
-
- case old_t_fence_v:
- case old_t_fence_h:
-  result = rng(0, 10);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("crak");
-   ter_set(x, y, t_dirt);
-   spawn_item(x, y, "2x4", 0, rng(1, 3));
-   spawn_item(x, y, "nail", 0, 0, rng(2, 6));
-   spawn_item(x, y, "splinter", 0);
-   return true;
-  } else {
-   sound += _("whump.");
-   return true;
-  }
-  break;
-
- case old_t_fence_post:
-  result = rng(0, 10);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("crak");
-   ter_set(x, y, t_dirt);
-   spawn_item(x, y, "pointy_stick", 0, 1);
-   return true;
-  } else {
-   sound += _("whump.");
-   return true;
-  }
-  break;
-
- case old_t_wall_glass_h:
- case old_t_wall_glass_v:
- case old_t_wall_glass_h_alarm:
- case old_t_wall_glass_v_alarm:
- case old_t_door_glass_c:
-  result = rng(0, 20);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("glass breaking!");
-   ter_set(x, y, t_floor);
-   return true;
-  } else {
-   sound += _("whack!");
-   return true;
-  }
-  break;
-
- case old_t_reinforced_glass_h:
- case old_t_reinforced_glass_v:
-  result = rng(60, 100);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("glass breaking!");
-   ter_set(x, y, t_floor);
-   return true;
-  } else {
-   sound += _("whack!");
-   return true;
-  }
-  break;
-
- case old_t_tree_young:
-  result = rng(0, 50);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("crunch!");
-   ter_set(x, y, t_underbrush);
-   const int num_sticks = rng(0, 3);
-   for (int i = 0; i < num_sticks; i++)
-    spawn_item(x, y, "stick", 0);
-   return true;
-  } else {
-   sound += _("whack!");
-   return true;
-  }
-  break;
-
- case old_t_underbrush:
-  result = rng(0, 30);
-  if (res) *res = result;
-  if (str >= result && !one_in(4)) {
-   sound += _("crunch.");
-   ter_set(x, y, t_dirt);
-   return true;
-  } else {
-   sound += _("brush.");
-   return true;
-  }
-  break;
-
- case old_t_shrub:
-  result = rng(0, 30);
-  if (res) *res = result;
-  if (str >= result && str >= rng(0, 30) && one_in(2)){
-   sound += _("crunch.");
-   ter_set(x, y, t_underbrush);
-   return true;
-  } else {
-   sound += _("brush.");
-   return true;
-  }
-  break;
-
- case old_t_marloss:
-  result = rng(0, 40);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("crunch!");
-   ter_set(x, y, t_fungus);
-   return true;
-  } else {
-   sound += _("whack!");
-   return true;
-  }
-  break;
-
- case old_t_vat:
-  result = dice(2, 20);
-  if (res) *res = result;
-  if (str >= result) {
-   sound += _("ker-rash!");
-   ter_set(x, y, t_floor);
-   return true;
-  } else {
-   sound += _("plunk.");
-   return true;
-  }
-  break;
  }
+}
  if (res) *res = result;
  if (move_cost(x, y) <= 0) {
   sound += _("thump!");
@@ -2401,20 +1955,18 @@ bool map::hit_with_fire(game *g, const int x, const int y)
     return true;
 }
 
-void map::marlossify(const int x, const int y)
+bool map::marlossify(const int x, const int y)
 {
- const int type = rng(1, 9);
- switch (type) {
-  case 1:
-  case 2:
-  case 3:
-  case 4: ter_set(x, y, t_fungus);      break;
-  case 5:
-  case 6:
-  case 7: ter_set(x, y, t_marloss);     break;
-  case 8: ter_set(x, y, t_tree_fungal); break;
-  case 9: ter_set(x, y, t_slime);       break;
- }
+    if (one_in(25) && (terlist[ter(x, y)].movecost != 0 && !has_furn(x, y))) {
+        ter_set(x, y, t_marloss);
+        return true;
+    }
+    for (int i = 0; i < 25; i++) {
+        if(!g->spread_fungus(x, y)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool map::open_door(const int x, const int y, const bool inside)
@@ -2645,7 +2197,7 @@ void map::spawn_item(const int x, const int y, item new_item, const int birthday
 void map::spawn_artifact(const int x, const int y, itype* type, const int bday)
 {
     item newart(type, bday);
-    add_item(x, y, newart);
+    add_item_or_charges(x, y, newart);
 }
 
 //New spawn_item method, using item factory
@@ -2913,6 +2465,8 @@ std::list<item> map::use_charges(const point origin, const int range, const ityp
       if (veh) { // check if a vehicle part is present to provide water/power
         const int kpart = veh->part_with_feature(vpart, "KITCHEN");
         const int weldpart = veh->part_with_feature(vpart, "WELDRIG");
+        const int craftpart = veh->part_with_feature(vpart, "CRAFTRIG");
+        const int forgepart = veh->part_with_feature(vpart, "FORGE");
 
         if (kpart >= 0) { // we have a kitchen, now to see what to drain
           ammotype ftype = "NULL";
@@ -2937,6 +2491,40 @@ std::list<item> map::use_charges(const point origin, const int range, const ityp
           if (type == "welder")
             ftype = "battery";
           else if (type == "soldering_iron")
+            ftype = "battery";
+
+          item tmp = item_controller->create(type, 0); //TODO add a sane birthday arg
+          tmp.charges = veh->drain(ftype, quantity);
+          quantity -= tmp.charges;
+          ret.push_back(tmp);
+
+          if (quantity == 0)
+            return ret;
+        }
+        
+        if (craftpart >= 0) { // we have a craftrig, now to see what to drain
+          ammotype ftype = "NULL";
+
+          if (type == "press")
+            ftype = "battery";
+          else if (type == "vac_sealer")
+            ftype = "battery";
+          else if (type == "dehydrator")
+            ftype = "battery";
+
+          item tmp = item_controller->create(type, 0); //TODO add a sane birthday arg
+          tmp.charges = veh->drain(ftype, quantity);
+          quantity -= tmp.charges;
+          ret.push_back(tmp);
+
+          if (quantity == 0)
+            return ret;
+        }
+        
+        if (forgepart >= 0) { // we have a veh_forge, now to see what to drain
+          ammotype ftype = "NULL";
+
+          if (type == "forge")
             ftype = "battery";
 
           item tmp = item_controller->create(type, 0); //TODO add a sane birthday arg
@@ -3105,7 +2693,9 @@ void map::remove_trap(const int x, const int y)
         traplocs[t].erase(point(x, y));
     }
 }
-
+/*
+ * Get wrapper for all fields at xy
+ */
 field& map::field_at(const int x, const int y)
 {
  if (!INBOUNDS(x, y)) {
@@ -3120,6 +2710,88 @@ field& map::field_at(const int x, const int y)
  return grid[nonant]->fld[lx][ly];
 }
 
+/*
+ * Increment/decrement age of field type at point.
+ * returns resulting age or -1 if not present.
+ */
+int map::adjust_field_age(const point p, const field_id t, const int offset) {
+    return set_field_age( p, t, offset, true);
+}
+
+/*
+ * Increment/decrement strength of field type at point, creating if not present, removing if strength becomes 0
+ * returns resulting strength, or 0 for not present
+ */
+int map::adjust_field_strength(game *g, const point p, const field_id t, const int offset) {
+    return set_field_strength(g, p, t, offset, true);
+}
+
+/*
+ * Set age of field type at point, or increment/decrement if offset=true
+ * returns resulting age or -1 if not present.
+ */
+int map::set_field_age(const point p, const field_id t, const int age, bool isoffset) {
+    field_entry * field_ptr = get_field( p, t );
+    if ( field_ptr != NULL ) {
+        int adj = ( isoffset ? field_ptr->getFieldAge() : 0 ) + age;
+        field_ptr->setFieldDensity( adj );
+        return adj;
+    }
+    return -1;
+}
+
+/*
+ * set strength of field type at point, creating if not present, removing if strength is 0
+ * returns resulting strength, or 0 for not present
+ */
+int map::set_field_strength(game * g, const point p, const field_id t, const int str, bool isoffset) {
+    field_entry * field_ptr = get_field( p, t );
+    if ( field_ptr != NULL ) {
+        int adj = ( isoffset ? field_ptr->getFieldDensity() : 0 ) + str;
+        if ( adj > 0 ) {
+            field_ptr->setFieldDensity( adj );
+            return adj;
+        } else {
+            remove_field( p.x, p.y, t );
+            return 0;
+        }
+    } else if ( 0 + str > 0 ) {
+        return ( add_field( g, p, t, str, 0 ) ? str : 0 );
+    }
+    return 0;
+}
+
+/*
+ * get age of field type at point. -1 = not present
+ */
+int map::get_field_age( const point p, const field_id t ) {
+    field_entry * field_ptr = get_field( p, t );
+    return ( field_ptr == NULL ? -1 : field_ptr->getFieldAge() );
+}
+
+/*
+ * get strength of field type at point. 0 = not present
+ */
+int map::get_field_strength( const point p, const field_id t ) {
+    field_entry * field_ptr = get_field( p, t );
+    return ( field_ptr == NULL ? 0 : field_ptr->getFieldDensity() );
+}
+
+/*
+ * get field type at point. NULL if not present
+ */
+field_entry * map::get_field( const point p, const field_id t ) {
+    if (!INBOUNDS(p.x, p.y))
+        return NULL;
+    const int nonant = int(p.x / SEEX) + int(p.y / SEEY) * my_MAPSIZE;
+    const int lx = p.x % SEEX;
+    const int ly = p.y % SEEY;
+    return grid[nonant]->fld[lx][ly].findField(t);
+}
+
+/*
+ * add field type at point, or set denity if present
+ */
 bool map::add_field(game *g, const point p, const field_id t, unsigned int density, const int age)
 {
     if (!INBOUNDS(p.x, p.y))
@@ -3141,12 +2813,19 @@ bool map::add_field(game *g, const point p, const field_id t, unsigned int densi
     return true;
 }
 
+/*
+ * add field type at xy, or set denity if present
+ */
 bool map::add_field(game *g, const int x, const int y,
                     const field_id t, const unsigned char new_density)
 {
  return this->add_field(g,point(x,y),t,new_density,0);
 }
 
+
+/*
+ * remove field type at xy
+ */
 void map::remove_field(const int x, const int y, const field_id field_to_remove)
 {
  if (!INBOUNDS(x, y))
@@ -3722,12 +3401,12 @@ void map::save(overmap *om, unsigned const int turn, const int x, const int y, c
  }
 }
 
-void map::load(game *g, const int wx, const int wy, const int wz, const bool update_vehicle)
+void map::load(game *g, const int wx, const int wy, const int wz, const bool update_vehicle, overmap *om)
 {
  for (int gridx = 0; gridx < my_MAPSIZE; gridx++) {
   for (int gridy = 0; gridy < my_MAPSIZE; gridy++) {
-   if (!loadn(g, wx, wy, wz, gridx, gridy, update_vehicle))
-    loadn(g, wx, wy, wz, gridx, gridy, update_vehicle);
+   if (!loadn(g, wx, wy, wz, gridx, gridy, update_vehicle, om))
+    loadn(g, wx, wy, wz, gridx, gridy, update_vehicle, om);
   }
  }
 }
@@ -3864,13 +3543,16 @@ void map::saven(overmap *om, unsigned const int turn, const int worldx, const in
 // 0,0  1,0  2,0
 // 0,1  1,1  2,1
 // 0,2  1,2  2,2 etc
-bool map::loadn(game *g, const int worldx, const int worldy, const int worldz, const int gridx, const int gridy,
-                const bool update_vehicles)
-{
+bool map::loadn(game *g, const int worldx, const int worldy, const int worldz,
+                const int gridx, const int gridy, const bool update_vehicles, overmap * om) {
+ if (om == NULL) {
+     om = g->cur_om;
+ }
+
  dbg(D_INFO) << "map::loadn(game[" << g << "], worldx["<<worldx<<"], worldy["<<worldy<<"], gridx["<<gridx<<"], gridy["<<gridy<<"])";
 
- const int absx = g->cur_om->pos().x * OMAPX * 2 + worldx + gridx,
-           absy = g->cur_om->pos().y * OMAPY * 2 + worldy + gridy,
+ const int absx = om->pos().x * OMAPX * 2 + worldx + gridx,
+           absy = om->pos().y * OMAPY * 2 + worldy + gridy,
            gridn = gridx + gridy * my_MAPSIZE;
 
  dbg(D_INFO) << "map::loadn absx: " << absx << "  absy: " << absy
@@ -3899,36 +3581,70 @@ bool map::loadn(game *g, const int worldx, const int worldy, const int worldz, c
    }
   }
 
+  // fixme; roll off into some function elsewhere ---v
+
     // check traps
+    std::map<point, trap_id> rain_backlog;
+    bool do_funnels = ( worldz >= 0 && g->weather_log.size() > 0 ); // empty if just loaded a save here
     for (int x = 0; x < SEEX; x++) {
         for (int y = 0; y < SEEY; y++) {
             const trap_id t = tmpsub->trp[x][y];
             if (t != tr_null) {
+
                 const int fx = x + gridx * SEEX;
                 const int fy = y + gridy * SEEY;
                 traplocs[t].insert(point(fx, fy));
+                if ( do_funnels &&
+                     g->traps[t]->funnel_radius_mm > 0 &&             // funnel
+                     has_flag_ter_or_furn("INDOORS", fx, fy) == false // we have no outside_cache
+                   ) {
+                    rain_backlog[point(x, y)] = t;
+                }
             }
         }
     }
 
-  // check spoiled stuff
+  // check spoiled stuff, and fill up funnels while we're at it
   for (int x = 0; x < SEEX; x++) {
       for (int y = 0; y < SEEY; y++) {
+          int biggest_container_idx = -1;
+          int maxvolume = 0;
+          bool do_container_check = false;
+
+          if ( do_funnels && ! rain_backlog.empty() && rain_backlog.find(point(x,y)) != rain_backlog.end() ) {
+              do_container_check = true;
+          }
+          int intidx = 0;
+
           for(std::vector<item, std::allocator<item> >::iterator it = tmpsub->itm[x][y].begin();
               it != tmpsub->itm[x][y].end();) {
-              if(it->goes_bad()) {
+              if ( do_container_check == true ) { // cannot link trap to mapitems
+                  int itvol = it->is_funnel_container(maxvolume); // big
+                  if ( itvol > maxvolume ) {                      // biggest
+                      biggest_container_idx = intidx;             // this will survive erases below, it ptr may not
+                      itvol = maxvolume;
+                  }
+              }
+              if(it->goes_bad() && biggest_container_idx != intidx) { // you never know...
                   it_comest *food = dynamic_cast<it_comest*>(it->type);
                   int maxShelfLife = it->bday + (food->spoils * 600)*2;
                   if(g->turn >= maxShelfLife) {
                       it = tmpsub->itm[x][y].erase(it);
-                  } else { ++it; }
-              } else { ++it; }
+                  } else { ++it; intidx++; }
+              } else { ++it; intidx++; }
           }
+
+          if ( do_container_check == true && biggest_container_idx != -1 ) { // funnel: check. bucket: check
+              item * it = &tmpsub->itm[x][y][biggest_container_idx];
+              trap_id fun_trap_id = rain_backlog[point(x,y)];
+              retroactively_fill_from_funnel(g, it, fun_trap_id, int(g->turn) ); // bucket: what inside??
+          }
+
       }
   }
 
   // plantEpoch is half a season; 3 epochs pass from plant to harvest
-  const int plantEpoch = 14400 * (int)OPTIONS["SEASON_LENGTH"] / 2;
+  const int plantEpoch = 14400 * (int)ACTIVE_WORLD_OPTIONS["SEASON_LENGTH"] / 2;
 
   // check plants
   for (int x = 0; x < SEEX; x++) {
@@ -3941,6 +3657,7 @@ bool map::loadn(game *g, const int worldx, const int worldy, const int worldz, c
           furn = (furn_id((int)furn + 1));
           seed.bday += plantEpoch;
 
+          // fixme; Lazy farmer drop rake on dirt mound. What happen rake?!
           tmpsub->itm[x][y].resize(1);
 
           tmpsub->itm[x][y][0].bday = seed.bday;
@@ -3949,6 +3666,7 @@ bool map::loadn(game *g, const int worldx, const int worldy, const int worldz, c
       }
     }
   }
+  // fixme; roll off into some function elsewhere ---^
 
  } else { // It doesn't exist; we must generate it!
   dbg(D_INFO|D_WARNING) << "map::loadn: Missing mapbuffer data. Regenerating.";
@@ -3958,27 +3676,37 @@ bool map::loadn(game *g, const int worldx, const int worldy, const int worldz, c
 //  squares divisible by 2.
   int newmapx = worldx + gridx - ((worldx + gridx) % 2);
   int newmapy = worldy + gridy - ((worldy + gridy) % 2);
-  overmap* this_om = g->cur_om;
+  overmap* this_om = om;
 
-  // slightly out of bounds? to the east, south, or both?
-  // cur_om is the one containing the upper-left corner of the map
-  if (newmapx >= OMAPX*2){
-     newmapx -= OMAPX*2;
-     this_om = g->om_hori;
-     if (newmapy >= OMAPY*2){
-        newmapy -= OMAPY*2;
-        this_om = g->om_diag;
-     }
+  int shiftx = 0;
+  int shifty = 0;
+  if ( newmapx < 0 ) {
+    while ( newmapx < 0 ) {
+      shiftx--;
+      newmapx += OMAPX * 2;
+    }
+  } else if ( newmapx >= OMAPX * 2 ) {
+    while ( newmapx >= OMAPX * 2 ) {
+      shiftx++;
+      newmapx -= OMAPX * 2;
+    }
   }
-  else if (newmapy >= OMAPY*2){
-     newmapy -= OMAPY*2;
-     this_om = g->om_vert;
+  if ( newmapy < 0 ) {
+    while ( newmapy < 0 ) {
+      shifty--;
+      newmapy += OMAPX * 2;
+    }
+  } else if ( newmapy >= OMAPX * 2 ) {
+    while ( newmapy >= OMAPX * 2 ) {
+      shifty++;
+      newmapy -= OMAPX * 2;
+    }
   }
 
-  if (worldx + gridx < 0)
-   newmapx = worldx + gridx;
-  if (worldy + gridy < 0)
-   newmapy = worldy + gridy;
+  if ( shiftx != 0 || shifty != 0 ) {
+       this_om = &overmap_buffer.get(g, om->pos().x + shiftx, om->pos().y + shifty);
+  }
+
   tmp_map.generate(g, this_om, newmapx, newmapy, worldz, int(g->turn));
   return false;
  }
@@ -4341,6 +4069,10 @@ void map::set_abs_sub( const int x, const int y, const int z ) {
   world_z = z;
   abs_min=point(x*SEEX, y*SEEY);
   abs_max=point(x*SEEX + (SEEX * my_MAPSIZE), y*SEEY + (SEEY * my_MAPSIZE) );
+}
+
+submap * map::getsubmap( const int grididx ) {
+    return grid[grididx];
 }
 
 

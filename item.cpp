@@ -354,8 +354,8 @@ std::string item::info(bool showtext, std::vector<iteminfo> *dump, game *g, bool
  {
   dump->push_back(iteminfo("BASE", _("Volume: "), "", volume(), true, "", false, true));
   dump->push_back(iteminfo("BASE", _("   Weight: "), "", g->u.convert_weight(weight()), false, "", true, true));
-  dump->push_back(iteminfo("BASE", _("Bash: "), "", type->melee_dam, true, "", false));
-  dump->push_back(iteminfo("BASE", (has_flag("SPEAR") ? _(" Pierce: ") : _(" Cut: ")), "", type->melee_cut, true, "", false));
+  dump->push_back(iteminfo("BASE", _("Bash: "), "", damage_bash(), true, "", false));
+  dump->push_back(iteminfo("BASE", (has_flag("SPEAR") ? _(" Pierce: ") : _(" Cut: ")), "", damage_cut(), true, "", false));
   dump->push_back(iteminfo("BASE", _(" To-hit bonus: "), ((type->m_to_hit > 0) ? "+" : ""), type->m_to_hit, true, ""));
   dump->push_back(iteminfo("BASE", _("Moves per attack: "), "", attack_time(), true, "", true, true));
   if ( debug == true ) {
@@ -606,7 +606,7 @@ std::string item::info(bool showtext, std::vector<iteminfo> *dump, game *g, bool
 
  if ( type->qualities.size() > 0){
     for(std::map<std::string, int>::const_iterator quality = type->qualities.begin(); quality!=type->qualities.end();++quality){
-        dump->push_back( iteminfo("QUALITIES", "", string_format(_("Has %s quality of level %d."),quality->first.c_str(),quality->second) ));
+        dump->push_back( iteminfo("QUALITIES", "", string_format(_("Has %s of level %d."),qualities[quality->first].name.c_str(),quality->second) ));
     }
  }
 
@@ -945,33 +945,80 @@ int item::weight() const
     return ret;
 }
 
-int item::volume() const
+/*
+ * precise_unit_volume: Returns the volume, multiplied by 1000.
+ * 1: -except- ammo, since the game treats the volume of count_by_charge items as 1/stack_size of the volume defined in .json
+ * 2: Ammo is also not totalled.
+ * 3: gun mods -are- added to the total, since a modded gun is not a splittable thing, in an inventory sense
+ * This allows one to obtain the volume of something consistent with game rules, with a precision that is lost
+ * when a 2 volume bullet is divided by ???? and returned as an int.
+ */
+int item::precise_unit_volume() const
 {
- if (corpse != NULL && typeId() == "corpse" ) {
-  switch (corpse->size) {
-   case MS_TINY:   return   2;
-   case MS_SMALL:  return  40;
-   case MS_MEDIUM: return  75;
-   case MS_LARGE:  return 160;
-   case MS_HUGE:   return 600;
-  }
- }
+   return volume(true, true);
+}
 
- if( is_null() )
-  return 0;
+/*
+ * note, the game currently has an undefined number of different scales of volume: items that are count_by_charges, and
+ * everything else:
+ *    everything else: volume = type->volume
+ *   count_by_charges: volume = type->volume / stack_size
+ * Also, this function will multiply count_by_charges items by the amount of charges before dividing by ???.
+ * If you need more precision, precise_value = true will return a multiple of 1000
+ * If you want to handle counting up charges elsewhere, unit value = true will skip that part,
+ *   except for guns.
+ * Default values are unit_value=false, precise_value=false
+ */
+int item::volume(bool unit_value, bool precise_value ) const
+{
+    int ret = 0;
+    if (corpse != NULL && typeId() == "corpse" ) {
+        switch (corpse->size) {
+            case MS_TINY:
+                ret = 2;
+                break;
+            case MS_SMALL:
+                ret = 40;
+                break;
+            case MS_MEDIUM:
+                ret = 75;
+                break;
+            case MS_LARGE:
+                ret = 160;
+                break;
+            case MS_HUGE:
+                ret = 600;
+                break;
+        }
+        if ( precise_value == true ) {
+            ret *= 1000;
+        }
+        return ret;
+    }
 
- int ret = type->volume;
+    if( is_null()) {
+        return 0;
+    }
 
- if (count_by_charges()) {
-   ret *= charges;
-   ret /= max_charges();
- }
+    ret = type->volume;
 
- if (is_gun()) {
-  for (int i = 0; i < contents.size(); i++)
-   ret += contents[i].volume();
- }
-   return ret;
+    if ( precise_value == true ) {
+        ret *= 1000;
+    }
+
+    if (count_by_charges()) {
+        if ( unit_value == false ) {
+            ret *= charges;
+        }
+        ret /= max_charges();
+    }
+
+    if (is_gun()) {
+        for (int i = 0; i < contents.size(); i++) {
+            ret += contents[i].volume( false, precise_value );
+        }
+    }
+    return ret;
 }
 
 int item::volume_contained()
@@ -999,7 +1046,7 @@ int item::damage_cut() const
 {
     if (is_gun()) {
         for (int i = 0; i < contents.size(); i++) {
-            if (contents[i].typeId() == "bayonet")
+            if (contents[i].typeId() == "bayonet" || "pistol_bayonet"|| "sword_bayonet")
                 return contents[i].type->melee_cut;
         }
     }
@@ -1039,11 +1086,12 @@ bool item::has_flag(std::string f) const
     return ret;
 }
 
-bool item::has_quality(std::string quality_name) const {
-    return has_quality(quality_name, 1);
+bool item::has_quality(std::string quality_id) const {
+    return has_quality(quality_id, 1);
 }
 
-bool item::has_quality(std::string quality_name, int quality_value) const {
+bool item::has_quality(std::string quality_id, int quality_value) const {
+    // TODO: actually implement this >:(
     bool ret = false;
 
     if(type->qualities.size() > 0){
@@ -1514,6 +1562,31 @@ bool item::is_container() const
         return false;
 
     return type->is_container();
+}
+
+bool item::is_watertight_container() const
+{
+    return ( is_container() != false && has_flag("WATERTIGHT") && has_flag("SEALS") );
+}
+
+int item::is_funnel_container(int bigger_than) const
+{
+    if ( ! is_container() ) {
+        return 0;
+    }
+    it_container *ct = static_cast<it_container *>(type);
+    // todo; consider linking funnel to item or -making- it an active item
+    if ( (int)ct->contains <= bigger_than ) {
+        return 0; // skip contents check, performance
+    }
+    if (
+        contents.empty() ||
+        contents[0].typeId() == "water" ||
+        contents[0].typeId() == "water_acid" ||
+        contents[0].typeId() == "water_acid_weak") {
+        return (int)ct->contains;
+    }
+    return 0;
 }
 
 bool item::is_tool() const

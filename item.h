@@ -109,16 +109,19 @@ public:
  bool invlet_is_okay();
  bool stacks_with(item rhs);
  void put_in(item payload);
+ void add_rain_to_container(bool acid, int charges = 1);
 
  int weight() const;
- int volume() const;
+
+ int precise_unit_volume() const;
+ int volume(bool unit_value=false, bool precise_value=false) const;
  int volume_contained();
  int attack_time();
  int damage_bash();
  int damage_cut() const;
  bool has_flag(std::string f) const;
- bool has_quality(std::string quality_name) const;
- bool has_quality(std::string quality_name, int quality_value) const;
+ bool has_quality(std::string quality_id) const;
+ bool has_quality(std::string quality_id, int quality_value) const;
  bool has_technique(std::string t, player *p = NULL);
  int has_gunmod(itype_id type);
  item* active_gunmod();
@@ -171,6 +174,9 @@ public:
  bool is_armor() const;
  bool is_book() const;
  bool is_container() const;
+ bool is_watertight_container() const;
+ int is_funnel_container(int bigger_than) const;
+ 
  bool is_tool() const;
  bool is_software() const;
  bool is_macguffin() const;
