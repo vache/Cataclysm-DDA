@@ -109,6 +109,72 @@ std::string compsec_itemat::save()
     return data.str();
 }
 
+compsec_containerat::compsec_containerat(std::stringstream &stream)
+{
+    stream >> itemx >> itemy >> wt >> soft >> empty;
+    if(!empty)
+    {
+        stream >> it;
+    }
+}
+
+bool compsec_containerat::attempt()
+{
+    // problem if: not container, req. watertight & item given not,
+    // req. empty, & item given not, req. non empty & item given empty
+    // req. contents & item wrong contents
+
+    // if watertight, ignore software, vice versa
+    int x = itemx + c->compx;
+    int y = itemy + c->compy;
+    if(g->m.i_at(x, y).size() == 0)
+    {
+        return false;
+    }
+    item itemat = g->m.i_at(x, y)[0];
+    if(soft)
+    {
+        if(itemat.typeId() != "usb_drive")
+        {
+            return false;
+        }
+    }
+    if(wt)
+    {
+        if(!itemat.is_watertight_container())
+        {
+            return false;
+        }
+    }
+    if(empty)
+    {
+        return (itemat.contents.size() == 0);
+    }
+    else
+    {
+        if(itemat.contents[0].typeId() != it)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+}
+
+std::string compsec_containerat::save()
+{
+    std::stringstream data;
+    data << "cnat " << itemx << " " << itemy << " " << wt << " " <<
+            soft << " " << empty << " ";
+    if(!empty)
+    {
+        data << it << " ";
+    }
+    return data.str();
+}
+
 compact_chter::compact_chter(std::stringstream &stream)
 {
     stream >> terx >> tery >> ter;
@@ -206,14 +272,39 @@ compact_item::compact_item(std::stringstream &stream)
 
 void compact_item::go()
 {
-    item new_item = item_controller->create(it, (int)g->turn);
-    g->m.add_item(c->compx + itemx, c->compy + itemy, new_item);
+    g->m.spawn_item(c->compx + itemx, c->compy + itemy, it, 0, 1);
 }
 
 std::string compact_item::save()
 {
     std::stringstream data;
     data << "itm " << itemx << " " << itemy << " " << it << " ";
+    return data.str();
+}
+
+compact_fill::compact_fill(std::stringstream &stream)
+{
+    stream >> itemx >> itemy >> it >> amt;
+}
+
+void compact_fill::go()
+{
+    item *container = &(g->m.i_at(c->compx + itemx, c->compy + itemy)[0]);
+    item contents(g->itypes[it], g->turn);
+    if(contents.is_software())
+    {
+        container->put_in(contents);
+    }
+    else if(container->is_container())
+    {
+        container->put_in(contents);
+    }
+}
+
+std::string compact_fill::save()
+{
+    std::stringstream data;
+    data << "fil " << itemx << " " << itemy << " " << it << " " << amt << " ";
     return data.str();
 }
 
@@ -418,6 +509,194 @@ std::string compact_killmon::save()
     std::stringstream data;
     data << "kil " << tlx << " " << tly << " " << brx << " " << bry << " ";
     return data.str();
+}
+
+compact_disease::compact_disease(std::stringstream &stream)
+{
+    stream >> d >> dur;
+}
+
+// going to assume just basic diseases for now, disease/duration only
+void compact_disease::go()
+{
+    g->u.add_disease((dis_type)d, dur);
+}
+
+std::string compact_disease::save()
+{
+    std::stringstream data;
+    data << "dis " << d << " " << dur << " ";
+    return data.str();
+}
+
+compact_pain::compact_pain(std::stringstream &stream)
+{
+    stream >> min >> max;
+}
+
+void compact_pain::go()
+{
+    g->u.pain += rng(min, max);
+}
+
+std::string compact_pain::save()
+{
+    std::stringstream data;
+    data << "pai " << min << " " << max << " ";
+    return data.str();
+}
+
+compact_event::compact_event(std::stringstream &stream)
+{
+    stream >> type >> turn >> fac >> eventx >> eventy;
+}
+
+void compact_event::go()
+{
+    g->add_event((event_type)type, (int)g->turn + turn, fac, eventx, eventy);
+}
+
+std::string compact_event::save()
+{
+    std::stringstream data;
+    data << "evt " << type << " " << turn << " " << fac << " " << eventx << " " << eventy << " ";
+    return data.str();
+}
+
+void compact_cascade::go()
+{
+    if (!c->query_bool(_("WARNING: Resonance cascade carries severe risk!  Continue?")))
+    {
+        return;
+    }
+    g->u.add_memorial_log(_("Caused a resonance cascade."));
+    std::vector<point> cascade_points;
+    for (int i = g->u.posx - 10; i <= g->u.posx + 10; i++)
+    {
+        for (int j = g->u.posy - 10; j <= g->u.posy + 10; j++)
+        {
+            if (g->m.ter(i, j) == t_radio_tower)
+            {
+                cascade_points.push_back(point(i, j));
+            }
+        }
+    }
+    if (cascade_points.empty())
+    {
+        g->resonance_cascade(g->u.posx, g->u.posy);
+    }
+    else
+    {
+        point p = cascade_points[rng(0, cascade_points.size() - 1)];
+        g->resonance_cascade(p.x, p.y);
+    }
+}
+
+std::string compact_cascade::save()
+{
+    return "rcs ";
+}
+
+void compact_nuke::go()
+{
+    point target = g->cur_om->draw_overmap_in_window(c->w_terminal, 0);
+//    WINDOW* w = newwin(getmaxy(c->w_border)-2, 24,
+//                       getbegy(c->w_border)+1, getbegx(c->w_border)+1);
+//    for(int i = 0; i < getmaxy(c->w_border)-2; i++)
+//    {
+//        mvwputch(w, 24, i, c_yellow, LINE_XOXO);
+//    }
+    wrefresh(c->w_border);
+    wrefresh(c->w_terminal);
+
+    c->reset_terminal();
+    //c->print_line("You picked a %s.", oterlist[g->cur_om->ter(target.x, target.y, 0)].name.c_str());
+
+    if (target.x == -1)
+    {
+        g->add_msg(_("Target acquisition canceled"));
+        return;
+    }
+    if(query_yn(_("Confirm nuclear missile launch.")))
+    {
+        g->add_msg(_("Nuclear missile launched!"));
+    }
+    else
+    {
+        g->add_msg(_("Nuclear missile launch aborted."));
+        return;
+    }
+    g->refresh_all();
+
+    //Put some smoke gas and explosions at the nuke location.
+    for(int i= g->u.posx +8; i < g->u.posx +15; i++)
+    {
+        for(int j= g->u.posy +3; j < g->u.posy +12; j++)
+            if(!one_in(4))
+            {
+                g->m.add_field(NULL, i+rng(-2,2), j+rng(-2,2), fd_smoke, rng(1,9));
+            }
+    }
+
+    g->explosion(g->u.posx +10, g->u.posx +21, 200, 0, true); //Only explode once. But make it large.
+
+    //...ERASE MISSILE, OPEN SILO, DISABLE COMPUTER
+    // For each level between here and the surface, remove the missile
+    for (int level = g->levz; level <= 0; level++)
+    {
+        map tmpmap(&g->traps);
+        tmpmap.load(g, g->levx, g->levy, level, false);
+
+        if(level < 0)
+        {
+            tmpmap.translate(t_missile, t_hole);
+        }
+        else if(level == 0)
+        {
+            tmpmap.translate(t_metal_floor, t_hole);
+        }
+        tmpmap.save(g->cur_om, g->turn, g->levx, g->levy, level);
+    }
+
+    g->u.add_memorial_log(_("Launched a nuke at a %s."),
+            oterlist[g->cur_om->ter(target.x, target.y, 0)].name.c_str());
+    for(int x = target.x - 2; x <= target.x + 2; x++)
+    {
+        for(int y = target.y -  2; y <= target.y + 2; y++)
+        {
+            // make that nice circular shape
+            if(!((x==target.x-2 && y==target.y-2) ||
+                 (x==target.x-2 && y==target.y+2) ||
+                 (x==target.x+2 && y==target.y+2) ||
+                 (x==target.x+2 && y==target.y-2)))
+            {
+                g->nuke(x, y);
+            }
+        }
+    }
+
+    for(int i = 0; i < c->compopts.size(); i++)
+    {
+        for(int j = 0; j < c->compopts[i].actions.size(); j++)
+        {
+            if(c->compopts[i].actions[j] == this)
+            {
+                c->compopts[i].actions.erase(c->compopts[i].actions.begin() + j);
+                delete this;
+                c->compopts.erase(c->compopts.begin() + i);
+            }
+        }
+    }
+
+    touchwin(c->w_border);
+    wrefresh(c->w_border);
+    touchwin(c->w_terminal);
+    wrefresh(c->w_terminal);
+}
+
+std::string compact_nuke::save()
+{
+    return "nuk ";
 }
 
 compopt::compopt(std::stringstream &stream)
@@ -720,6 +999,7 @@ void computer::use(bool test)
     }
 
     shutdown_terminal(); // This should have been done by now, but just in case.
+    g->refresh_all();
 }
 
 

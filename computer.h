@@ -143,6 +143,20 @@ public:
     int itemy;
 };
 
+class compsec_containerat : public compsec
+{
+public:
+    compsec_containerat(int x, int y, bool watertight, bool software, bool empty, std::string containing = "") :
+        itemx(x), itemy(y), wt(watertight), soft(software), empty(empty), it(containing){}
+    compsec_containerat(std::stringstream& stream);
+    ~compsec_containerat(){}
+    bool attempt();
+    std::string save();
+    int itemx, itemy;
+    bool wt, soft, empty;
+    std::string it;
+};
+
 class compact
 {
 protected:
@@ -227,6 +241,19 @@ public:
     int itemx;
     int itemy;
     std::string it;
+};
+
+class compact_fill : public compact
+{
+public:
+    compact_fill(int x, int y, std::string item, int charges) : itemx(x), itemy(y), it(item), amt(charges) {}
+    compact_fill(std::stringstream & stream);
+    ~compact_fill(){}
+    void go();
+    std::string save();
+    int itemx, itemy;
+    std::string it;
+    int amt;
 };
 
 class compact_map : public compact
@@ -324,8 +351,63 @@ public:
     int tlx, tly, brx, bry;
 };
 
-// todo: resonance cascade,nuke,bionic list,events(amigara),
-// diseases(stem cell),software(download/upload/analysis/empty contents)
+// give user a disease (stem cell treatment is disease)
+class compact_disease : public compact
+{
+public:
+    compact_disease(std::string disease, int duration) : d(disease), dur(duration){}
+    compact_disease(std::stringstream& stream);
+    ~compact_disease(){}
+    void go();
+    std::string save();
+    std::string d;
+    int dur;
+};
+
+class compact_pain : public compact
+{
+public:
+    compact_pain(int minpain, int maxpain) : min(minpain), max(maxpain) {}
+    compact_pain(std::stringstream& stream);
+    ~compact_pain(){}
+    void go();
+    std::string save();
+    int min, max;
+};
+
+class compact_event : public compact
+{
+public:
+    compact_event(int eventtype, int when, int faction = -1, int x = -1, int y = -1) :
+        type(eventtype), turn(when), fac(faction), eventx(x), eventy(y){}
+    compact_event(std::stringstream& stream);
+    ~compact_event(){}
+    void go();
+    std::string save();
+    int type, turn, fac, eventx, eventy;
+};
+
+class compact_cascade : public compact
+{
+public:
+    compact_cascade() {}
+    compact_cascade(std::stringstream& stream){}
+    ~compact_cascade(){}
+    void go();
+    std::string save();
+};
+
+class compact_nuke : public compact
+{
+public:
+    compact_nuke(){}
+    compact_nuke(std::stringstream& stream);
+    ~compact_nuke(){}
+    void go();
+    std::string save();
+};
+
+// todo: bionic list, software(download/upload/analysis/empty contents)
 
 class compopt
 {
@@ -362,6 +444,8 @@ public:
     std::string save_data(bool);
     void load_data(std::string data, bool test);
     friend void compact_msg::go();
+    friend void compact_cascade::go();
+    friend void compact_nuke::go();
     friend class compopt;
 
     // Initialization

@@ -1797,6 +1797,7 @@ void overmap::draw(WINDOW *w, game *g, int z, int &cursx, int &cursy,
                    ter_color, ter_sym);
    }
   }
+
   if (target.x != -1 && target.y != -1 && blink &&
       (target.x < cursx - om_map_height / 2 ||
         target.x > cursx + om_map_height / 2  ||
@@ -1830,7 +1831,6 @@ void overmap::draw(WINDOW *w, game *g, int z, int &cursx, int &cursy,
     {
         print_npcs(g, w, cursx, cursy, z);
     }
-
 
   cur_ter = ter(cursx, cursy, z);
 // Draw the vertical line
@@ -2029,6 +2029,268 @@ point overmap::draw_overmap(game *g, int zlevel)
  erase();
  g->refresh_all();
  return ret;
+}
+
+point overmap::draw_overmap_in_window(WINDOW *w, int zlevel)
+{
+ WINDOW* w_map = w; //newwin(TERMY, TERMX, 0, 0);
+ //WINDOW* w_search = newwin(13, 27, 3, TERMX-27);
+ timeout(BLINK_SPEED); // Enable blinking!
+ bool blink = true;
+ int cursx = (g->levx + int(MAPSIZE / 2)) / 2,
+     cursy = (g->levy + int(MAPSIZE / 2)) / 2;
+ int origx = cursx, origy = cursy, origz = zlevel;
+ signed char ch = 0;
+ point ret(-1, -1);
+ overmap hori, vert, diag; // Adjacent maps
+
+ // Configure input context for navigating the map.
+ input_context ictxt("OVERMAP");
+ ictxt.register_action("ANY_INPUT");
+ ictxt.register_directions();
+ ictxt.register_action("CONFIRM");
+ ictxt.register_action("HELP_KEYBINDINGS");
+
+ // Actions whose keys we want to display.
+ ictxt.register_action("CENTER");
+ ictxt.register_action("QUIT");
+ std::string action;
+ do {
+     draw(w_map, g, zlevel, cursx, cursy, origx, origy, ch, blink, hori, vert, diag, &ictxt, true);
+     action = ictxt.handle_input();
+     timeout(BLINK_SPEED); // Enable blinking!
+
+  int dirx, diry;
+  if (action != "ANY_INPUT") {
+   blink = true; // If any input is detected, make the blinkies on
+  }
+  ictxt.get_direction(dirx, diry, action);
+  if (dirx != -2 && diry != -2) {
+   cursx += dirx;
+   cursy += diry;
+  } else if (action == "CENTER") {
+   cursx = origx;
+   cursy = origy;
+   zlevel = origz;
+  }
+  else if (action == "CONFIRM")
+   ret = point(cursx, cursy);
+  else if (action == "QUIT")
+   ret = point(-1, -1);
+  else if (action == "ANY_INPUT") { // Hit timeout on input, so make characters blink
+   blink = !blink;
+  }
+ } while (action != "QUIT" && action != "CONFIRM");
+ timeout(-1);
+// werase(w_map);
+// wrefresh(w_map);
+// delwin(w_map);
+// werase(w_search);
+// wrefresh(w_search);
+// delwin(w_search);
+// erase();
+// g->refresh_all();
+ return ret;
+}
+
+void overmap::draw(WINDOW *w, game *g, int z, int &cursx, int &cursy,
+                   int &origx, int &origy, signed char &ch, bool blink,
+                   overmap &hori, overmap &vert, overmap &diag, input_context* inp_ctxt, bool computer)
+{
+ int om_map_width, om_map_height;
+ int height, width;
+ int sidebar_width = 19;
+ getmaxyx(w, height, width);
+ om_map_height = height;
+ om_map_width = width - sidebar_width;
+
+ int omx, omy;
+
+  bool see;
+  oter_id cur_ter = ot_null;
+  nc_color ter_color;
+  long ter_sym;
+  /* First, determine if we're close enough to the edge to need an
+   * adjacent overmap, and record the offsets. */
+  int offx = 0;
+  int offy = 0;
+  if (cursx < om_map_width / 2)
+  {
+      offx = -1;
+  }
+  else if (cursx > OMAPX - 2 - (om_map_width / 2))
+  {
+      offx = 1;
+  }
+  if (cursy < (om_map_height / 2))
+  {
+      offy = -1;
+  }
+  else if (cursy > OMAPY - 2 - (om_map_height / 2))
+  {
+      offy = 1;
+  }
+
+  // If the offsets don't match the previously loaded ones, load the new adjacent overmaps.
+  if( offx && loc.x + offx != hori.loc.x )
+  {
+      hori = overmap_buffer.get( g, loc.x + offx, loc.y );
+  }
+  if( offy && loc.y + offy != vert.loc.y )
+  {
+      vert = overmap_buffer.get( g, loc.x, loc.y + offy );
+  }
+  if( offx && offy && (loc.x + offx != diag.loc.x || loc.y + offy != diag.loc.y ) )
+  {
+      diag = overmap_buffer.get( g, loc.x + offx, loc.y + offy );
+  }
+
+// Now actually draw the map
+    for (int i = -(om_map_width / 2); i < (om_map_width / 2); i++) {
+        for (int j = -(om_map_height / 2);
+             j <= (om_map_height / 2) + (ch == 'j' ? 1 : 0); j++) {
+            omx = cursx + i;
+            omy = cursy + j;
+            see = false;
+            if (omx >= 0 && omx < OMAPX && omy >= 0 && omy < OMAPY) { // It's in-bounds
+                cur_ter = ter(omx, omy, z);
+                see = seen(omx, omy, z);
+            // <Out of bounds placement>
+            } else if (omx < 0) {
+                omx += OMAPX;
+                if (omy < 0 || omy >= OMAPY) {
+                    omy += (omy < 0 ? OMAPY : 0 - OMAPY);
+                    cur_ter = diag.ter(omx, omy, z);
+                    see = diag.seen(omx, omy, z);
+                } else {
+                    cur_ter = hori.ter(omx, omy, z);
+                    see = hori.seen(omx, omy, z);
+                }
+            } else if (omx >= OMAPX) {
+                omx -= OMAPX;
+                if (omy < 0 || omy >= OMAPY) {
+                    omy += (omy < 0 ? OMAPY : 0 - OMAPY);
+                    cur_ter = diag.ter(omx, omy, z);
+                    see = diag.seen(omx, omy, z);
+                } else {
+                    cur_ter = hori.ter(omx, omy, z);
+                    see = hori.seen(omx, omy, z);
+                }
+            } else if (omy < 0) {
+                omy += OMAPY;
+                cur_ter = vert.ter(omx, omy, z);
+                see = vert.seen(omx, omy, z);
+            } else if (omy >= OMAPY) {
+                omy -= OMAPY;
+                cur_ter = vert.ter(omx, omy, z);
+                see = vert.seen(omx, omy, z);
+            } else {
+                debugmsg("No data loaded! omx: %d omy: %d", omx, omy);
+            }
+            // </Out of bounds replacement>
+            if (see) {
+                if (omx == origx && omy == origy && blink) {
+                    ter_color = g->u.color();
+                    ter_sym = '@';
+                } else {
+                    if (cur_ter >= num_ter_types || cur_ter < 0)
+                        debugmsg("Bad ter %d (%d, %d)", cur_ter, omx, omy);
+                    ter_color = c_dkgray; //oterlist[cur_ter].color;
+                    ter_sym = '#'; //oterlist[cur_ter].sym;
+                }
+            } else { // We haven't explored this tile yet
+                ter_color = c_dkgray;
+                ter_sym = '#';
+            }
+
+            mvwputch(w, (om_map_height / 2) + j, (om_map_width / 2) + i + sidebar_width + 1,
+                       ter_color, ter_sym);
+        }
+    }
+
+    if(computer && blink)
+    {
+        // termx = # columns, termy = # rows
+        for(int col = 0; col < om_map_width; col++)
+        {
+            mvwputch(w, (om_map_height / 2), col + sidebar_width + 1, c_red, LINE_OXOX);
+        }
+        for(int row = 0; row < om_map_height; row++)
+        {
+            mvwputch(w, row, (om_map_width / 2) + sidebar_width + 1, c_red, LINE_XOXO);
+        }
+        mvwputch(w, (om_map_height / 2), (om_map_width / 2) + sidebar_width + 1, c_red, LINE_XXXX);
+    }
+    if(computer)
+    {
+        for(int row = 0; row < height; row++)
+        {
+            if(row == 0)
+            {
+                mvwputch(w, row, sidebar_width, c_white, LINE_OXXO);
+                mvwputch(w, row, width - 1, c_white, LINE_OOXX);
+            }
+            else if(row == height - 1)
+            {
+                mvwputch(w, row, sidebar_width, c_white, LINE_XXOO);
+                mvwputch(w, row, width - 1, c_white, LINE_XOOX);
+            }
+            else if(row % 2 == 0)
+            {
+                mvwputch(w, row, sidebar_width, c_white, LINE_XOXO);
+                mvwputch(w, row, width - 1, c_white, LINE_XOXO);
+            }
+            else
+            {
+                mvwputch(w, row, sidebar_width, c_white, LINE_XXXO);
+                mvwputch(w, row, width - 1, c_white, LINE_XOXX);
+            }
+        }
+        for(int col = sidebar_width + 1; col < width - 1; col++)
+        {
+            if(col % 2 == 0)
+            {
+                mvwputch(w, 0, col, c_white, LINE_OXOX);
+                mvwputch(w, height - 1, col, c_white, LINE_OXOX);
+            }
+            else
+            {
+                mvwputch(w, 0, col, c_white, LINE_OXXX);
+                mvwputch(w, height - 1, col, c_white, LINE_XXOX);
+            }
+        }
+        for(int col = 0; col < sidebar_width; col++)
+        {
+            for(int row = 0; row < height; row++)
+            {
+                mvwputch(w, row, col, c_black, ' ');
+            }
+        }
+
+        int lines = fold_and_print(w, 1, 0, sidebar_width, c_yellow,_("Low Yield Tactical Nuclear Weapon Targetting System"));
+
+        if(blink)
+        {
+            fold_and_print(w, lines + 2, 0, sidebar_width, c_red, _("Warning: Critically Low Fuel, Range Limited"));
+        }
+
+        lines = fold_and_print(w, 11, 0, sidebar_width, c_magenta,
+                       (inp_ctxt->get_desc("CONFIRM") +
+                        _(" - Activate Launch Sequence")).c_str());
+        fold_and_print(w, 12 + lines, 0, sidebar_width, c_magenta,
+                       (inp_ctxt->get_desc("QUIT") +
+                        _(" - Terminate Launch Sequence")).c_str());
+
+        real_coords rc;
+        rc.fromomap( g->cur_om->pos().x, g->cur_om->pos().y, cursx, cursy );
+        mvwprintz( w, height - 1, 0, c_red, "(%d'%d, %d'%d)",
+                        rc.abs_om.x, rc.om_pos.x,
+                        rc.abs_om.y, rc.om_pos.y );
+    }
+
+  cur_ter = ter(cursx, cursy, z);
+// Done with all drawing!
+  wrefresh(w);
 }
 
 void overmap::first_house(int &x, int &y)

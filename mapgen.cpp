@@ -3444,7 +3444,8 @@ case ot_shelter: {
   omtypes.push_back(ot_police_west);
   omtypes.push_back(ot_hospital_entrance);
   omtypes.push_back(ot_hospital);
-  opt.add_action(new compact_map(60, 0, omtypes));
+  omtypes.push_back(ot_silo);
+  opt.add_action(new compact_map(100, 0, omtypes));
   compopt optb("Get a free gas mask!");
   int x = 0;
   int y = 1;
@@ -3485,15 +3486,32 @@ case ot_shelter: {
           oph.add_action(new compact_remfield(i, j, fd_fire));
       }
   }
+  compopt opi("Display Map");
+  opi.add_action(new compact_nuke());
+  compopt opj("Download Hacking Software");
+  opj.add_security(new compsec_containerat(0, 1, false, true
+                                           , true));
+  opj.add_failure(new compact_msg("Needs empty usb drive.  Take this one."));
+  opj.add_failure(new compact_item(0, 1, "usb_drive"));
+  opj.add_action(new compact_fill(0, 1, "software_hacking", 1));
+  compopt opk("Analyze Blood");
+  opk.add_security(new compsec_containerat(0, 1, true, false
+                                           , false, "blood"));
+  opk.add_failure(new compact_msg("Needs full container of blood."));
+  opk.add_action(new compact_msg("Analyzing Blood Sample..."));
+
   tmpcomp->add_compopt(opt);
-  tmpcomp->add_compopt(optb);
-  tmpcomp->add_compopt(opc);
-  tmpcomp->add_compopt(opd);
+  //tmpcomp->add_compopt(optb);
+  //tmpcomp->add_compopt(opc);
+  //tmpcomp->add_compopt(opd);
   tmpcomp->add_compopt(ope);
   tmpcomp->add_compopt(opf);
   tmpcomp->add_compopt(opg);
   tmpcomp->add_compopt(oph);
- }
+  tmpcomp->add_compopt(opi);
+  tmpcomp->add_compopt(opj);
+  tmpcomp->add_compopt(opk);
+
   if(ACTIVE_WORLD_OPTIONS["BLACK_ROAD"]) {
       //place zombies outside
       place_spawns(g, "GROUP_ZOMBIE", ACTIVE_WORLD_OPTIONS["SPAWN_DENSITY"], 0, 0, SEEX * 2 - 1, 3, 0.4f);
@@ -3734,56 +3752,118 @@ case ot_lmoe_under:
    if (boarders == 1){
     fill_background(this, t_rock_floor);
     if (one_in(2)){ //armory and military barracks
-  mapf::formatted_set_simple(this, 0, 0,
-"\
-|----------------------|\n\
-|r....................r|\n\
-|r..rr..rr....rr..rr..r|\n\
-|r..rr..rr....rr..rr..r|\n\
-|r..rr..rr....rr..rr..r|\n\
-|r..rr..rr....rr..rr..r|\n\
-|r..rr..rr....rr..rr..r|\n\
-|......................|\n\
-|......................|\n\
-|..rrrrrr..........rrr.|\n\
-|-----|----DD-|--+|--|-|\n\
-|b.ddd|.......gc..|T.|T|\n\
-|b..h.+.......g6h.|-+|+|\n\
-|l....|.......gc..|....|\n\
-|-----|.......|--D|...S|\n\
-|b....+...........|...S|\n\
-|b...l|...........|-+--|\n\
-|-----|................|\n\
-|b....+...x............|\n\
-|b...l|..|-DD-|+-|+-|+-|\n\
-|-----|..|....|.l|.l|.l|\n\
-|b....+..|6...|..|..|..|\n\
-|b...l|..|....|bb|bb|bb|\n\
-|-----|--|-..-|--|--|--|\n",
-    mapf::basic_bind("b l A r d C h 6 x g G , . - | + D t c S T", t_rock_floor, t_rock_floor, t_floor,   t_rock_floor, t_rock_floor, t_centrifuge, t_rock_floor, t_console, t_console_broken, t_reinforced_glass_v, t_reinforced_glass_h, t_floor_blue, t_rock_floor, t_concrete_h, t_concrete_v, t_door_metal_c, t_door_metal_locked, t_rock_floor, t_rock_floor, t_rock_floor, t_rock_floor),
-    mapf::basic_bind("b l A r d C h 6 x g G , . - | + D t c S T", f_bed,        f_locker,     f_crate_c, f_rack,       f_desk,       f_null,       f_chair,      f_null,    f_null,           f_null,               f_null,               f_null,       f_null,       f_null,       f_null,       f_null,         f_null,              f_table,      f_counter,    f_sink,       f_toilet));
-    for (int i = 0; i <= 23; i++) {
-     for (int j = 0; j <= 23; j++) {
-      if (this->furn(i,j) == f_locker){
-         place_items("mil_surplus", 50,  i,  j, i,  j, false, 0);
-       }
-      else if (this->furn(i,j) == f_desk){
-         place_items("office", 50,  i,  j, i,  j, false, 0);
-       }
-      else if (this->furn(i,j) == f_rack){
-         if (one_in(3)) place_items("mil_surplus", 30,  i,  j, i,  j, false, 0);
-         else if (one_in(2)) place_items("ammo", 30,  i,  j, i,  j, false, 0);
-         else if (one_in(3)) place_items("military", 30,  i,  j, i,  j, false, 0);
-         else place_items("mil_rifles", 30,  i,  j, i,  j, false, 0);
-         }
-     }
-    }
-     computer *tmpcomp2 = NULL;
-     tmpcomp2 = add_computer(10, 21, _("Barracks Entrance"), 4);
-     tmpcomp2->add_option(_("UNLOCK ENTRANCE"), COMPACT_UNLOCK, 6);
-     tmpcomp = add_computer(15, 12, _("Magazine Entrance"), 6);
-     tmpcomp->add_option(_("UNLOCK ENTRANCE"), COMPACT_UNLOCK, 7);
-   if (one_in(2)) add_spawn("mon_zombie_soldier", rng(1,4), 12, 12);
+        /*
+//  mapf::formatted_set_simple(this, 0, 0,
+//"\
+//|----------------------|\n\
+//|r....................r|\n\
+//|r..rr..rr....rr..rr..r|\n\
+//|r..rr..rr....rr..rr..r|\n\
+//|r..rr..rr....rr..rr..r|\n\
+//|r..rr..rr....rr..rr..r|\n\
+//|r..rr..rr....rr..rr..r|\n\
+//|......................|\n\
+//|......................|\n\
+//|..rrrrrr..........rrr.|\n\
+//|-----|----DD-|--+|--|-|\n\
+//|b.ddd|.......gc..|T.|T|\n\
+//|b..h.+.......g6h.|-+|+|\n\
+//|l....|.......gc..|....|\n\
+//|-----|.......|--D|...S|\n\
+//|b....+...........|...S|\n\
+//|b...l|...........|-+--|\n\
+//|-----|................|\n\
+//|b....+...x............|\n\
+//|b...l|..|-DD-|+-|+-|+-|\n\
+//|-----|..|....|.l|.l|.l|\n\
+//|b....+..|6...|..|..|..|\n\
+//|b...l|..|....|bb|bb|bb|\n\
+//|-----|--|-..-|--|--|--|\n",
+//    mapf::basic_bind("b l A r d C h 6 x g G , . - | + D t c S T", t_rock_floor, t_rock_floor, t_floor,   t_rock_floor, t_rock_floor, t_centrifuge, t_rock_floor, t_console, t_console_broken, t_reinforced_glass_v, t_reinforced_glass_h, t_floor_blue, t_rock_floor, t_concrete_h, t_concrete_v, t_door_metal_c, t_door_metal_locked, t_rock_floor, t_rock_floor, t_rock_floor, t_rock_floor),
+//    mapf::basic_bind("b l A r d C h 6 x g G , . - | + D t c S T", f_bed,        f_locker,     f_crate_c, f_rack,       f_desk,       f_null,       f_chair,      f_null,    f_null,           f_null,               f_null,               f_null,       f_null,       f_null,       f_null,       f_null,         f_null,              f_table,      f_counter,    f_sink,       f_toilet));
+//    for (int i = 0; i <= 23; i++) {
+//     for (int j = 0; j <= 23; j++) {
+//      if (this->furn(i,j) == f_locker){
+//         place_items("mil_surplus", 50,  i,  j, i,  j, false, 0);
+//       }
+//      else if (this->furn(i,j) == f_desk){
+//         place_items("office", 50,  i,  j, i,  j, false, 0);
+//       }
+//      else if (this->furn(i,j) == f_rack){
+//         if (one_in(3)) place_items("mil_surplus", 30,  i,  j, i,  j, false, 0);
+//         else if (one_in(2)) place_items("ammo", 30,  i,  j, i,  j, false, 0);
+//         else if (one_in(3)) place_items("military", 30,  i,  j, i,  j, false, 0);
+//         else place_items("mil_rifles", 30,  i,  j, i,  j, false, 0);
+//         }
+//     }
+//    }
+//     computer *tmpcomp2 = NULL;
+//     tmpcomp2 = add_computer(10, 21, _("Barracks Entrance"), 4);
+//     tmpcomp2->add_option(_("UNLOCK ENTRANCE"), COMPACT_UNLOCK, 6);
+//     tmpcomp = add_computer(15, 12, _("Magazine Entrance"), 6);
+//     tmpcomp->add_option(_("UNLOCK ENTRANCE"), COMPACT_UNLOCK, 7);
+//   if (one_in(2)) add_spawn("mon_zombie_soldier", rng(1,4), 12, 12);*/
+        mapf::formatted_set_simple(this, 0, 0,"\
+012222222222222222222222\n\
+013333333331313131313331\n\
+013444444431515151563331\n\
+013477777431333333313331\n\
+013483338431333333319591\n\
+013483:3843;3<===<333331\n\
+013483338431333333333331\n\
+013477777431333333333331\n\
+013444444431515151>1?3?1\n\
+0133@@A@@33131313131?3?1\n\
+013333333331222222212;21\n\
+01221333122131BBBBB13331\n\
+013313331333313333333331\n\
+013312;22222223333333331\n\
+0133133333333;3333333331\n\
+0133133333333;3333333331\n\
+01222222221CC222777772;1\n\
+01A@6A@6A@133A1333333131\n\
+01@D6@D6@D1332133EEE3831\n\
+0133333333;331F33EEE3831\n\
+0133333333;331F333333131\n\
+01@D6@D6@D1331F333333;31\n\
+01A@6A@6A@1331==<==AG1B1\n\
+01222222222;;22222222222\n",
+        mapf::basic_bind(" 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G", 91, 45, 46, 17, 176, 72, 41, 52, 51, 53, 24, 67, 17, 17, 71, 17, 17, 145, 17, 69, 17, 17, 17, 152),
+        mapf::basic_bind(" 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 22, 0, 27, 17, 0, 26, 0, 12, 20, 24, 0), true);
+        spawn_item(22, 22, "hazmat_suit", 0);
+        add_spawn("mon_zombie_fast", 1, 12, 1);
+        add_spawn("mon_zombie", 1, 14, 1);
+        add_spawn("mon_zombie_fast", 1, 18, 1);
+        add_spawn("mon_zombie_brute", 1, 21, 2);
+        add_spawn("mon_zombie", 1, 5, 6);
+        add_spawn("mon_zombie_fast", 1, 15, 6);
+        add_spawn("mon_zombie_scientist", 1, 21, 6);
+        add_spawn("mon_zombie_scientist", 1, 3, 9);
+        add_spawn("mon_cat", 1, 14, 9);
+        add_spawn("mon_dog", 1, 16, 9);
+        add_spawn("mon_zombie_scientist", 1, 6, 10);
+        add_spawn("mon_zombie", 1, 21, 13);
+        add_spawn("mon_zombie", 1, 5, 14);
+        add_spawn("mon_zombie_scientist", 1, 10, 14);
+        add_spawn("mon_zombie_grabber", 1, 17, 14);
+        add_spawn("mon_zombie", 1, 9, 19);
+        add_spawn("mon_zombie_scientist", 1, 5, 20);
+        add_spawn("mon_zombie_electric", 1, 16, 20);
+        place_items("cubical_office", 75, 6, 22, 6, 22, true, 0);
+        place_items("cubical_office", 75, 8, 21, 8, 21, true, 0);
+        place_items("cubical_office", 75, 2, 21, 2, 21, true, 0);
+        place_items("cubical_office", 75, 8, 18, 8, 18, true, 0);
+        place_items("cubical_office", 75, 6, 17, 6, 17, true, 0);
+        place_items("cubical_office", 75, 3, 17, 3, 17, true, 0);
+        place_items("dissection", 75, 22, 8, 22, 9, true, 0);
+        place_items("dissection", 75, 20, 8, 20, 9, true, 0);
+        place_items("goo", 75, 18, 11, 18, 11, true, 0);
+        place_items("hospital_samples", 75, 14, 19, 14, 21, true, 0);
+        place_items("lab_shoes", 75, 16, 11, 16, 11, true, 0);
+        place_items("lab_torso", 75, 14, 11, 15, 11, true, 0);
+        place_items("science", 75, 17, 11, 17, 11, true, 0);
+        place_items("surgery", 75, 17, 22, 18, 22, true, 0);
+        place_items("surgery", 75, 14, 22, 15, 22, true, 0);
   } else{ //human containment
    mapf::formatted_set_simple(this, 0, 0,
 "\
@@ -11213,6 +11293,165 @@ case ot_farm_field:
  } break;
 
  case ot_basement:
+
+      switch(rng(0, 10))
+  {
+      case 0:
+      case 1:
+      case 3:
+      case 4:
+      case 5:
+      case 6:
+    mapf::formatted_set_simple(this, 0, 0,"\
+000000000000000000000000\n\
+011111111112222222111110\n\
+034556766839:::::9;6<<30\n\
+0365563=6839:6666>;6?@30\n\
+0366663AB839:::::9;66<30\n\
+03<66C311132222222;66630\n\
+03<?6C3=6B31111111117130\n\
+03<6663A663:63D=A6666630\n\
+031171117111736666A?6630\n\
+036666666666636666A66630\n\
+036666666666636AAAA?6630\n\
+031171111116636?6?666630\n\
+03CC6;366636666666666630\n\
+03666;36E6766666666FF630\n\
+0366663666366666666FF630\n\
+03465536E6366666666FF630\n\
+034655366636666666666630\n\
+0366643111366666GGGG6630\n\
+03171134HI366666666G6630\n\
+03A66834667663J6446G6630\n\
+03=6683466766366446G6630\n\
+03A6B834=K3LL36666666630\n\
+011111111111111111111110\n\
+000000000000000000000000\n",
+    mapf::basic_bind(" 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L", 91, 42, 46, 41, 22, 22, 22, 54, 22, 45, 22, 22, 22, 22, 67, 22, 144, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 156),
+    mapf::basic_bind(" 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L", 0, 0, 0, 0, 20, 4, 0, 0, 11, 0, 27, 28, 17, 7, 0, 12, 0, 22, 5, 25, 23, 18, 21, 14, 29, 30, 13, 15, 0), true);
+    place_toilet(8, 4);
+    place_toilet(9, 6);
+    place_toilet(4, 21);
+    spawn_item(2, 2, "portable_game", 0);
+    spawn_item(20, 2, "UPS_off", 0);
+    spawn_item(16, 7, "microwave", 0);
+    spawn_item(2, 16, "television", 0);
+    place_items("bedroom", 75, 3, 14, 3, 17, true, 0);
+    place_items("cannedfood", 75, 13, 4, 16, 4, true, 0);
+    place_items("cannedfood", 75, 12, 3, 12, 4, true, 0);
+    place_items("cannedfood", 75, 12, 2, 16, 2, true, 0);
+    place_items("child_items", 75, 2, 5, 2, 6, true, 0);
+    place_items("child_items", 75, 4, 4, 5, 4, true, 0);
+    place_items("cleaning", 75, 9, 21, 9, 21, true, 0);
+    place_items("cleaning", 75, 11, 7, 11, 7, true, 0);
+    place_items("consumer_electronics", 75, 5, 13, 5, 13, true, 0);
+    place_items("consumer_electronics", 75, 2, 7, 2, 7, true, 0);
+    place_items("dresser", 75, 2, 12, 3, 12, true, 0);
+    place_items("dresser", 75, 5, 5, 5, 6, true, 0);
+    place_items("fridgesnacks", 75, 14, 7, 14, 7, true, 0);
+    place_items("home_hw", 75, 7, 18, 7, 19, true, 0);
+    place_items("magazines", 75, 16, 19, 16, 19, true, 0);
+    place_items("novels", 75, 5, 12, 5, 12, true, 0);
+    place_items("office", 75, 21, 4, 21, 4, true, 0);
+    place_items("office", 75, 21, 2, 21, 2, true, 0);
+    place_items("pool_table", 75, 19, 13, 20, 15, true, 0);
+    place_items("tools", 75, 7, 20, 7, 20, true, 0);
+    break;
+      case 7:
+      case 8:
+      case 9:
+          mapf::formatted_set_simple(this, 0, 0,"\
+000001111111111111111111\n\
+000002333345555333666332\n\
+000002433333335333373382\n\
+000002433334435333333392\n\
+000002433334435333333392\n\
+000002333333333333333382\n\
+000002:::;:3<33333444332\n\
+0000021111111113311111=2\n\
+000002:3>233332332333232\n\
+000002;3323333233=33?2@2\n\
+000002:33=33A3233=33B212\n\
+000002111133332332111232\n\
+00000233C33333233D333332\n\
+000002333333332332111112\n\
+000002533EEE332332886F62\n\
+000002533EEE33D332333762\n\
+00000253333339233=333362\n\
+000002333333392332333362\n\
+000002111111111111111112\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n",
+          mapf::basic_bind(" 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F", 91, 42, 41, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 54, 22, 22, 156, 22, 22, 22, 57, 22, 144),
+          mapf::basic_bind(" 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F", 0, 0, 0, 0, 20, 14, 17, 12, 28, 27, 22, 7, 13, 0, 5, 29, 0, 18, 30, 23, 0, 21, 0), true);
+          place_toilet(8, 8);
+          spawn_item(19, 1, "laptop", 0);
+          spawn_item(6, 3, "television", 0);
+          spawn_item(10, 6, "microwave", 0);
+          spawn_item(13, 16, "football", 0);
+          place_items("alcohol", 75, 6, 6, 8, 6, true, 0);
+          place_items("camping", 75, 22, 11, 22, 12, true, 0);
+          place_items("cleaning", 75, 20, 12, 21, 12, true, 0);
+          place_items("fridgesnacks", 75, 8, 12, 8, 12, true, 0);
+          place_items("homeguns", 75, 22, 3, 22, 4, true, 0);
+          place_items("manuals", 75, 22, 2, 22, 2, true, 0);
+          place_items("novels", 75, 22, 5, 22, 5, true, 0);
+          place_items("office", 75, 22, 14, 22, 17, true, 0);
+          place_items("office", 75, 18, 1, 20, 1, true, 0);
+          place_items("pool_table", 75, 9, 14, 11, 15, true, 0);
+          place_items("sports", 75, 13, 17, 13, 17, true, 0);
+          break;
+      case 10:
+          mapf::formatted_set_simple(this, 0, 0,"\
+000000000001111111111111\n\
+000000000002999926333342\n\
+000000000002933926733352\n\
+000000000002933926333352\n\
+000000000002:33923333352\n\
+000000000002:33328333332\n\
+000000000002:333=8333332\n\
+0000000000024333211111=2\n\
+000000000002473329999232\n\
+0000000000024333=33332@2\n\
+000000000001111111111112\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n\
+000000000000000000000000\n",
+          mapf::basic_bind(" 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F", 91, 42, 41, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 54, 22, 22, 156, 22, 22, 22, 57, 22, 144),
+          mapf::basic_bind(" 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F", 0, 0, 0, 0, 20, 14, 17, 12, 28, 27, 22, 7, 13, 0, 5, 29, 0, 18, 30, 23, 0, 21, 0), true);
+          spawn_item(12, 7, "gunpowder", 0);
+          spawn_item(12, 8, "lgpistol_primer", 0);
+          spawn_item(12, 9, "lead", 0);
+          place_items("allguns", 75, 15, 1, 15, 3, true, 0);
+          place_items("ammo", 75, 13, 1, 14, 1, true, 0);
+          place_items("camping", 75, 12, 1, 12, 1, true, 0);
+          place_items("cannedfood", 75, 17, 8, 19, 8, true, 0);
+          place_items("gunxtras", 75, 12, 2, 12, 3, true, 0);
+          place_items("mil_accessories", 75, 12, 5, 12, 5, true, 0);
+          place_items("mil_armor", 75, 15, 4, 15, 4, true, 0);
+          place_items("mil_food_nodrugs", 75, 20, 8, 20, 8, true, 0);
+          break;
+  }
+
+ /* if(one_in(10))
+ // {
+
+//  }
+//  else
+//{
   for (int i = 0; i < SEEX * 2; i++) {
    for (int j = 0; j < SEEY * 2; j++) {
     if (i == 0 || j == 0 || i == SEEX * 2 - 1 || j == SEEY * 2 - 1)
@@ -11291,6 +11530,7 @@ case ot_farm_field:
   }
   // Chance of zombies in the basement, only appear north of the anteroom the stairs are in.
   place_spawns(g, "GROUP_ZOMBIE", 2, 1, 1, SEEX * 2 - 1, SEEX * 2 - 5, density);
+  //}*/
   break;
 
 // TODO: Maybe subway systems could have broken down trains in them?

@@ -117,6 +117,7 @@ class overmap
   int dist_from_city(point p);
 // Interactive point choosing; used as the map screen
   point draw_overmap(game *g, int z);
+  point draw_overmap_in_window(WINDOW* w, int z);
 
   bool ter_in_type_range(int x, int y, int z, oter_id type, int type_range);
   oter_id& ter(int x, int y, int z);
@@ -171,6 +172,10 @@ class overmap
   void draw(WINDOW *w, game *g, int z, int &cursx, int &cursy,
             int &origx, int &origy, signed char &ch, bool blink,
             overmap &hori, overmap &vert, overmap &diag, input_context* inp_ctxt);
+  void draw(WINDOW *w, game *g, int z, int &cursx, int &cursy,
+            int &origx, int &origy, signed char &ch, bool blink,
+            overmap &hori, overmap &vert, overmap &diag, input_context* inp_ctxt,
+            bool computer);
   // Overall terrain
   void place_river(point pa, point pb);
   void place_forest();

@@ -88,7 +88,7 @@ BIGNESS_ENGINE_DISPLACEMENT, // combustion engine CC displacement
 BIGNESS_KILOWATTS,           // electric motor power
 BIGNESS_WHEEL_DIAMETER,      // wheel size in inches, including tire
 //BIGNESS_PLATING_THICKNESS, //
-NUM_BIGNESS_ASPECTS,
+NUM_BIGNESS_ASPECTS
 };
 
 // Returns the name of a category of ammo (e.g. "shot")
@@ -565,7 +565,7 @@ struct it_container : public itype
 {
  unsigned char contains; // Internal volume
  virtual bool is_container() { return true; }
- it_container() : contains(0) {};
+ it_container() : contains(0) {}
 };
 
 struct it_tool : public itype
@@ -800,7 +800,7 @@ struct it_artifact_tool : public it_tool
   turns_per_charge = 0;
   revert_to = "null";
   use = &iuse::artifact;
- };
+ }
 
  it_artifact_tool(std::string pid, unsigned int pprice, std::string pname,
                   std::string pdes, char psym, nc_color pcolor, std::string pm1,
@@ -821,7 +821,7 @@ struct it_artifact_tool : public it_tool
      charge_type = ARTC_NULL;
      item_tags = pitem_tags;
      artifact_itype_ids.push_back(pid);
- };
+ }
 };
 
 struct it_artifact_armor : public it_armor
@@ -895,7 +895,7 @@ struct it_artifact_armor : public it_armor
  it_artifact_armor() :it_armor()
  {
   price = 0;
- };
+ }
 
  it_artifact_armor(std::string pid, unsigned int pprice, std::string pname,
                    std::string pdes, char psym, nc_color pcolor, std::string pm1,
@@ -914,7 +914,7 @@ struct it_artifact_armor : public it_armor
  {
      item_tags = pitem_tags;
      artifact_itype_ids.push_back(pid);
- };
+ }
 };
 
 #endif
