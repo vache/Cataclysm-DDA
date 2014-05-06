@@ -30,6 +30,7 @@ int VIEW_OFFSET_Y;
 int TERRAIN_WINDOW_WIDTH;
 int TERRAIN_WINDOW_HEIGHT;
 int TERRAIN_WINDOW_TERM_WIDTH;
+int TERRAIN_WINDOW_TERM_HEIGHT;
 int FULL_SCREEN_WIDTH;
 int FULL_SCREEN_HEIGHT;
 
@@ -407,6 +408,7 @@ void realDebugmsg(const char *filename, const char *line, const char *mes, ...)
         // wait for spacebar
     }
     werase(stdscr);
+    refresh();
 }
 
 // yn to make an immediate selection

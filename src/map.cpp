@@ -520,7 +520,7 @@ bool map::vehproceed()
         }
         // submerged wheels threshold is 2/3.
         if (num_wheels &&  (float)submerged_wheels / num_wheels > .666) {
-            add_msg(_("Your %s sank."), veh->name.c_str());
+            add_msg(m_bad, _("Your %s sank."), veh->name.c_str());
             if (pl_ctrl) {
                 veh->unboard_all ();
             }
@@ -563,7 +563,7 @@ bool map::vehproceed()
         }
     }
     else if (pl_ctrl && rng(0, 4) > g->u.skillLevel("driving") && one_in(20)) {
-        add_msg(_("You fumble with the %s's controls."), veh->name.c_str());
+        add_msg(m_warning, _("You fumble with the %s's controls."), veh->name.c_str());
         veh->turn (one_in(2) ? -15 : 15);
     }
     // eventually send it skidding if no control
@@ -608,9 +608,9 @@ bool map::vehproceed()
         veh_veh_coll_flag = true;
         veh_collision c = veh_veh_colls[0]; //Note: What´s with collisions with more than 2 vehicles?
         vehicle* veh2 = (vehicle*) c.target;
-        add_msg(_("The %1$s's %2$s collides with the %3$s's %4$s."),
-                   veh->name.c_str(),  veh->part_info(c.part).name.c_str(),
-                   veh2->name.c_str(), veh2->part_info(c.target_part).name.c_str());
+        add_msg(m_bad, _("The %1$s's %2$s collides with the %3$s's %4$s."),
+                       veh->name.c_str(),  veh->part_info(c.part).name.c_str(),
+                       veh2->name.c_str(), veh2->part_info(c.target_part).name.c_str());
 
         // for reference, a cargo truck weighs ~25300, a bicycle 690,
         //  and 38mph is 3800 'velocity'
@@ -764,20 +764,20 @@ bool map::vehproceed()
                 int dmg = d_vel/4*rng(70,100)/100;
                 psg->hurtall(dmg);
                 if (psg == &g->u) {
-                    add_msg(_("You take %d damage by the power of the impact!"), dmg);
+                    add_msg(m_bad, _("You take %d damage by the power of the impact!"), dmg);
                 } else if (psg->name.length()) {
-                    add_msg(_("%s takes %d damage by the power of the impact!"),
-                               psg->name.c_str(), dmg);
+                    add_msg(m_bad, _("%s takes %d damage by the power of the impact!"),
+                                   psg->name.c_str(), dmg);
                 }
             }
 
             if (throw_from_seat) {
                 if (psg == &g->u) {
-                    add_msg(_("You are hurled from the %s's seat by the power of the impact!"),
-                               veh->name.c_str());
+                    add_msg(m_bad, _("You are hurled from the %s's seat by the power of the impact!"),
+                                   veh->name.c_str());
                 } else if (psg->name.length()) {
-                    add_msg(_("%s is hurled from the %s's seat by the power of the impact!"),
-                               psg->name.c_str(), veh->name.c_str());
+                    add_msg(m_bad, _("%s is hurled from the %s's seat by the power of the impact!"),
+                                   psg->name.c_str(), veh->name.c_str());
                 }
                 unboard_vehicle(x + veh->parts[ppl[ps]].precalc_dx[0],
                                      y + veh->parts[ppl[ps]].precalc_dy[0]);
@@ -790,9 +790,9 @@ bool map::vehproceed()
                 const int lose_ctrl_roll = rng (0, dmg_1);
                 if (lose_ctrl_roll > psg->dex_cur * 2 + psg->skillLevel("driving") * 3) {
                     if (psg == &g->u) {
-                        add_msg(_("You lose control of the %s."), veh->name.c_str());
+                        add_msg(m_warning, _("You lose control of the %s."), veh->name.c_str());
                     } else if (psg->name.length()) {
-                        add_msg(_("%s loses control of the %s."), psg->name.c_str());
+                        add_msg(m_warning, _("%s loses control of the %s."), psg->name.c_str());
                     }
                     int turn_amount = (rng (1, 3) * sqrt((double)vel1_a) / 2) / 15;
                     if (turn_amount < 1) {
@@ -820,7 +820,7 @@ bool map::vehproceed()
             if (one_in(2)) {
                 if (displace_water (x + veh->parts[p].precalc_dx[0],
                                     y + veh->parts[p].precalc_dy[0]) && pl_ctrl) {
-                    add_msg(_("You hear a splash!"));
+                    add_msg(m_warning, _("You hear a splash!"));
                 }
             }
             veh->handle_trap( x + veh->parts[p].precalc_dx[0],
@@ -1513,7 +1513,7 @@ bool map::bash(const int x, const int y, const int str, std::string &sound, int 
         bash = &(ter_at(x,y).bash);
         jster = true;
     }
-    if (g->m.has_flag("ALARMED", x, y) &&
+    if (has_flag("ALARMED", x, y) &&
         !g->event_queued(EVENT_WANTED))
     {
         g->sound(x, y, 40, _("An alarm sounds!"));
@@ -2109,7 +2109,7 @@ bool map::hit_with_acid(const int x, const int y)
   case old_t_door_bar_locked:
   case old_t_bars:
    ter_set(x, y, t_floor);
-   add_msg(_("The metal bars melt!"));
+   add_msg(m_warning, _("The metal bars melt!"));
    break;
 
   case old_t_door_b:
@@ -2269,21 +2269,41 @@ bool map::close_door(const int x, const int y, const bool inside, const bool che
  return false;
 }
 
-int& map::radiation(const int x, const int y)
+int map::get_radiation(const int x, const int y) const
 {
- if (!INBOUNDS(x, y)) {
-  nulrad = 0;
-  return nulrad;
- }
-/*
- int nonant;
- cast_to_nonant(x, y, nonant);
-*/
+    if (!INBOUNDS(x, y)) {
+        return 0;
+    }
 
- int lx, ly;
- submap * const current_submap = get_submap_at(x, y, lx, ly);
+    int lx, ly;
+    submap * const current_submap = get_submap_at(x, y, lx, ly);
 
- return current_submap->rad[lx][ly];
+    return current_submap->get_radiation(lx, ly);
+}
+
+void map::set_radiation(const int x, const int y, const int value)
+{
+    if (!INBOUNDS(x, y)) {
+        return;
+    }
+
+    int lx, ly;
+    submap * const current_submap = get_submap_at(x, y, lx, ly);
+
+    current_submap->set_radiation(lx, ly, value);
+}
+
+void map::adjust_radiation(const int x, const int y, const int delta)
+{
+    if (!INBOUNDS(x, y)) {
+        return;
+    }
+
+    int lx, ly;
+    submap * const current_submap = get_submap_at(x, y, lx, ly);
+
+    int current_radiation = current_submap->get_radiation(lx, ly);
+    current_submap->set_radiation(lx, ly, current_radiation + delta);
 }
 
 int& map::temperature(const int x, const int y)
@@ -2352,7 +2372,13 @@ item map::water_from(const int x, const int y)
         ret.poison = rng(1, 7);
     return ret;
 }
+item map::swater_from(const int x, const int y)
+{
+    (void)x; (void)y;
+    item ret(item_controller->find_template("salt_water"), 0);
 
+    return ret;
+}
 item map::acid_from(const int x, const int y)
 {
     (void)x; (void)y; //all acid is acid, i guess?
@@ -2811,9 +2837,9 @@ bool map::process_active_item(item *it, submap * const current_submap, const int
                 if (rng(0,it->volume()) > it->burnt && g->revive_corpse(mapx, mapy, it)) {
                     if (g->u_see(mapx, mapy)) {
                         if(it->corpse->in_species("ROBOT")) {
-                            add_msg(_("A nearby robot has repaired itself and stands up!"));
+                            add_msg(m_warning, _("A nearby robot has repaired itself and stands up!"));
                         } else {
-                            add_msg(_("A nearby corpse rises and moves towards you!"));
+                            add_msg(m_warning, _("A nearby corpse rises and moves towards you!"));
                         }
                     }
                     return true;
@@ -3177,56 +3203,59 @@ void map::add_trap(const int x, const int y, const trap_id t)
 
 void map::disarm_trap(const int x, const int y)
 {
-  int skillLevel = g->u.skillLevel("traps");
+    int skillLevel = g->u.skillLevel("traps");
 
- if (tr_at(x, y) == tr_null) {
-  debugmsg("Tried to disarm a trap where there was none (%d %d)", x, y);
-  return;
- }
+    if (tr_at(x, y) == tr_null) {
+        debugmsg("Tried to disarm a trap where there was none (%d %d)", x, y);
+        return;
+    }
 
- const int tSkillLevel = g->u.skillLevel("traps");
- const int diff = traplist[tr_at(x, y)]->difficulty;
- int roll = rng(tSkillLevel, 4 * tSkillLevel);
+    trap* tr = traplist[tr_at(x, y)];
+    const int tSkillLevel = g->u.skillLevel("traps");
+    const int diff = tr->get_difficulty();
+    int roll = rng(tSkillLevel, 4 * tSkillLevel);
 
- while ((rng(5, 20) < g->u.per_cur || rng(1, 20) < g->u.dex_cur) && roll < 50)
-  roll++;
- if (roll >= diff) {
-  add_msg(_("You disarm the trap!"));
-  std::vector<itype_id> comp = traplist[tr_at(x, y)]->components;
-  for (int i = 0; i < comp.size(); i++) {
-   if (comp[i] != "null")
-    spawn_item(x, y, comp[i], 1, 1);
-  }
-  if (tr_at(x, y) == tr_engine) {
-      for (int i = -1; i <= 1; i++) {
-          for (int j = -1; j <= 1; j++) {
-              if (i != 0 || j != 0) {
-                  remove_trap(x + i, y + j);
-              }
-          }
-      }
-  }
-  if (tr_at(x, y) == tr_shotgun_1 || tr_at(x,y) == tr_shotgun_2) {
-      spawn_item(x,y,"shot_00",1,2);
-  }
-  remove_trap(x, y);
-  if(diff > 1.25 * skillLevel) // failure might have set off trap
-    g->u.practice(calendar::turn, "traps", 1.5*(diff - skillLevel));
- } else if (roll >= diff * .8) {
-  add_msg(_("You fail to disarm the trap."));
-  if(diff > 1.25 * skillLevel)
-    g->u.practice(calendar::turn, "traps", 1.5*(diff - skillLevel));
- }
- else {
-  add_msg(_("You fail to disarm the trap, and you set it off!"));
-  trap* tr = traplist[tr_at(x, y)];
-  trapfunc f;
-  (f.*(tr->act))(x, y);
-  if(diff - roll <= 6)
-   // Give xp for failing, but not if we failed terribly (in which
-   // case the trap may not be disarmable).
-   g->u.practice(calendar::turn, "traps", 2*diff);
- }
+    while ((rng(5, 20) < g->u.per_cur || rng(1, 20) < g->u.dex_cur) && roll < 50) {
+        roll++;
+    }
+    if (roll >= diff) {
+        add_msg(_("You disarm the trap!"));
+        std::vector<itype_id> comp = tr->components;
+        for (int i = 0; i < comp.size(); i++) {
+            if (comp[i] != "null") {
+                spawn_item(x, y, comp[i], 1, 1);
+            }
+        }
+        if (tr_at(x, y) == tr_engine) {
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    if (i != 0 || j != 0) {
+                        remove_trap(x + i, y + j);
+                    }
+                }
+            }
+        }
+        if (tr_at(x, y) == tr_shotgun_1 || tr_at(x,y) == tr_shotgun_2) {
+            spawn_item(x,y,"shot_00",1,2);
+        }
+        remove_trap(x, y);
+        if(diff > 1.25 * skillLevel) { // failure might have set off trap
+            g->u.practice(calendar::turn, "traps", 1.5*(diff - skillLevel));
+        }
+    } else if (roll >= diff * .8) {
+        add_msg(_("You fail to disarm the trap."));
+        if(diff > 1.25 * skillLevel) {
+            g->u.practice(calendar::turn, "traps", 1.5*(diff - skillLevel));
+        }
+    } else {
+        add_msg(m_bad, _("You fail to disarm the trap, and you set it off!"));
+        tr->trigger(&g->u, x, y);
+        if(diff - roll <= 6) {
+            // Give xp for failing, but not if we failed terribly (in which
+            // case the trap may not be disarmable).
+            g->u.practice(calendar::turn, "traps", 2*diff);
+        }
+    }
 }
 
 void map::remove_trap(const int x, const int y)
@@ -3356,7 +3385,7 @@ bool map::add_field(const point p, const field_id t, unsigned int density, const
         current_submap->field_count++; //Only adding it to the count if it doesn't exist.
     }
     current_submap->fld[lx][ly].addField(t, density, age); //This will insert and/or update the field.
-    if(g != NULL && p.x == g->u.posx && p.y == g->u.posy) {
+    if(g != NULL && this == &g->m && p.x == g->u.posx && p.y == g->u.posy) {
         step_in_field(p.x, p.y); //Hit the player with the field if it spawned on top of them.
     }
     return true;
@@ -3479,8 +3508,7 @@ void map::draw(WINDOW* w, const point center)
 
  for (int i = 0; i < my_MAPSIZE * my_MAPSIZE; i++) {
   if (!grid[i])
-   debugmsg("grid %d (%d, %d) is null! mapbuffer size = %d",
-            i, i % my_MAPSIZE, i / my_MAPSIZE, MAPBUFFER.size());
+   debugmsg("grid %d (%d, %d) is null!", i, i % my_MAPSIZE, i / my_MAPSIZE);
  }
 
  for  (int realx = center.x - getmaxx(w)/2; realx <= center.x + getmaxx(w)/2; realx++) {
@@ -3604,8 +3632,7 @@ void map::drawsq(WINDOW* w, player &u, const int x, const int y, const bool inve
         show_items = false; // Can only see underwater items if WE are underwater
     }
     // If there's a trap here, and we have sufficient perception, draw that instead
-    if (curr_trap != tr_null && (traplist[curr_trap]->visibility == -1 ||
-                                 u.per_cur - u.encumb(bp_eyes) >= traplist[curr_trap]->visibility)) {
+    if (curr_trap != tr_null && traplist[curr_trap]->can_see(g->u)) {
         tercol = traplist[curr_trap]->color;
         if (traplist[curr_trap]->sym == '%') {
             switch(rng(1, 5)) {
@@ -4433,7 +4460,7 @@ bool map::add_graffiti(int x, int y, std::string contents)
 {
   int lx, ly;
   submap * const current_submap = get_submap_at(x, y, lx, ly);
-  current_submap->graf[lx][ly] = graffiti(contents);
+  current_submap->set_graffiti(lx, ly, graffiti(contents));
   return true;
 }
 
@@ -4448,7 +4475,7 @@ graffiti map::graffiti_at(int x, int y)
  int lx, ly;
  submap * const current_submap = get_submap_at(x, y, lx, ly);
 
- return current_submap->graf[lx][ly];
+ return current_submap->get_graffiti(lx, ly);
 }
 
 long map::determine_wall_corner(const int x, const int y, const long orig_sym)

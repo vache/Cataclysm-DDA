@@ -992,9 +992,6 @@ void overmap::generate(overmap* north, overmap* east, overmap* south,
                        overmap* west)
 {
  dbg(D_INFO) << "overmap::generate start...";
- erase();
- clear();
- move(0, 0);
  std::vector<city> road_points; // cities and roads_out together
  std::vector<point> river_start;// West/North endpoints of rivers
  std::vector<point> river_end; // East/South endpoints of rivers
@@ -1761,6 +1758,7 @@ void overmap::draw(WINDOW *w, const tripoint &center,
         mvwprintz(w, 3, om_map_width + 1, c_white, _("Distance to target: %d"), distance);
     }
     mvwprintz(w, 15, om_map_width + 1, c_magenta, _("Use movement keys to pan."));
+    if (inp_ctxt != NULL) {
     mvwprintz(w, 16, om_map_width + 1, c_magenta, (inp_ctxt->get_desc("CENTER") +
             _(" - Center map on character")).c_str());
     mvwprintz(w, 17, om_map_width + 1, c_magenta, (inp_ctxt->get_desc("SEARCH") +
@@ -1773,6 +1771,7 @@ void overmap::draw(WINDOW *w, const tripoint &center,
             _(" - List notes")).c_str());
     fold_and_print(w, 21, om_map_width + 1, 27, c_magenta, ("m, " + inp_ctxt->get_desc("QUIT") +
                 _(" - Return to game")).c_str());
+    }
     point omt(cursx, cursy);
     const point om = overmapbuffer::omt_to_om_remain(omt);
     mvwprintz(w, getmaxy(w) - 1, om_map_width + 1, c_red,
@@ -1797,9 +1796,7 @@ point overmap::draw_overmap(int z)
 point overmap::draw_overmap(const tripoint& orig, bool debug_mongroup)
 {
     WINDOW* w_map = newwin(TERMY, TERMX, 0, 0);
-    timeout(BLINK_SPEED); // Enable blinking!
     bool blink = true;
-    long ch = 0;
     point ret(invalid_point);
     tripoint curs(orig);
 
@@ -1827,11 +1824,7 @@ point overmap::draw_overmap(const tripoint& orig, bool debug_mongroup)
         timeout(-1);
 
         int dirx, diry;
-        if (action != "ANY_INPUT") {
-            blink = true; // If any input is detected, make the blinkies on
-        }
-        ictxt.get_direction(dirx, diry, action);
-        if (dirx != -2 && diry != -2) {
+        if (ictxt.get_direction(dirx, diry, action)) {
             curs.x += dirx;
             curs.y += diry;
         } else if (action == "CENTER") {
@@ -1885,11 +1878,17 @@ point overmap::draw_overmap(const tripoint& orig, bool debug_mongroup)
             //Navigate through results
             tripoint tmp = curs;
             WINDOW* w_search = newwin(13, 27, 3, TERMX-27);
+            input_context ctxt("OVERMAP_SEARCH");
+            ctxt.register_action("NEXT_TAB", _("Next target"));
+            ctxt.register_action("PREV_TAB", _("Previous target"));
+            ctxt.register_action("QUIT");
+            ctxt.register_action("CONFIRM");
+            ctxt.register_action("HELP_KEYBINDINGS");
+            ctxt.register_action("ANY_INPUT");
             do {
                 tmp.x = om.pos().x * OMAPX + terlist[i].x;
                 tmp.y = om.pos().y * OMAPY + terlist[i].y;
-                timeout(BLINK_SPEED); // Enable blinking!
-                draw(w_map, tmp, orig, blink, &ictxt);
+                draw(w_map, tmp, orig, blink, NULL);
                 //Draw search box
                 draw_border(w_search);
                 mvwprintz(w_search, 1, 1, c_red, _("Find place:"));
@@ -1899,22 +1898,23 @@ point overmap::draw_overmap(const tripoint& orig, bool debug_mongroup)
                 mvwprintz(w_search, 10, 1, c_white, _("Enter/Spacebar to select."));
                 mvwprintz(w_search, 11, 1, c_white, _("q or ESC to return."));
                 wrefresh(w_search);
-                ch = input();
+                timeout(BLINK_SPEED); // Enable blinking!
+                action = ctxt.handle_input();
                 timeout(-1);
-                if (ch == ERR) {
-                    blink = !blink;
-                } else if (ch == '<') {
-                    i = (i + + 1) % terlist.size();
-                } else if (ch == '>' && i > 0) {
+                blink = !blink;
+                if (action == "NEXT_TAB") {
+                    i = (i + 1) % terlist.size();
+                } else if (action == "PREV_TAB") {
                     i = (i + terlist.size() - 1) % terlist.size();
-                } else if (ch == '\n' || ch == ' ') {
+                } else if (action == "CONFIRM") {
                     curs = tmp;
                 }
-            } while(ch != '\n' && ch != ' ' && ch != 'q' && ch != KEY_ESCAPE);
+            } while(action != "CONFIRM" && action != "QUIT");
             delwin(w_search);
-            ch = '.';
+            action = "";
+        } else if (action == "TIMEOUT") {
+            blink = !blink;
         } else if (action == "ANY_INPUT") {
-            // Hit timeout on input, so make characters blink
             blink = !blink;
             input_event e = ictxt.get_raw_input();
             if(e.type == CATA_INPUT_KEYBOARD && e.get_first_input() == 'm') {
@@ -2782,11 +2782,11 @@ void overmap::polish(const int z, const std::string &terrain_type)
                     good_road("ants", x, y, z);
                 } else if (check_ot_type("river", x, y, z)) {
                     good_river(x, y, z);
-                // Sometimes a bridge will start at the edge of a river,
-                // and this looks ugly.
-                // So, fix it by making that square normal road;
-                // also taking other road pieces that may be next
-		// to it into account. A bit of a kludge but it works.
+                    // Sometimes a bridge will start at the edge of a river,
+                    // and this looks ugly.
+                    // So, fix it by making that square normal road;
+                    // also taking other road pieces that may be next
+                    // to it into account. A bit of a kludge but it works.
                 } else if (ter(x, y, z) == "bridge_ns" &&
                            (!is_river(ter(x - 1, y, z)) ||
                             !is_river(ter(x + 1, y, z)))) {
@@ -3475,15 +3475,15 @@ void overmap::place_mongroups()
 {
     // Cities are full of zombies
     for( size_t i = 0; i < cities.size(); i++ ) {
-        if( !one_in(16) || cities[i].s > 5 ) {
-            if( ACTIVE_WORLD_OPTIONS["WANDER_SPAWNS"] ) {
-                zg.push_back (mongroup("GROUP_ZOMBIE", (cities[i].x * 2), (cities[i].y * 2), 0,
-                                       int(cities[i].s * 2.5), cities[i].s * 80));
+        if( ACTIVE_WORLD_OPTIONS["WANDER_SPAWNS"] ) {
+            if( !one_in(16) || cities[i].s > 5 ) {
+                zg.push_back( mongroup("GROUP_ZOMBIE", (cities[i].x * 2), (cities[i].y * 2), 0,
+                                       int(cities[i].s * 2.5), cities[i].s * 80) );
+                zg.back().set_target( zg.back().posx, zg.back().posy );
+                zg.back().horde = true;
+                zg.back().wander();
             }
         }
-        zg.back().set_target( zg.back().posx, zg.back().posy );
-        zg.back().horde = true;
-        zg.back().wander();
         if( !ACTIVE_WORLD_OPTIONS["STATIC_SPAWN"] ) {
             zg.push_back( mongroup("GROUP_ZOMBIE", (cities[i].x * 2), (cities[i].y * 2), 0,
                                    int(cities[i].s * 2.5), cities[i].s * 80) );

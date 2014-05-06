@@ -759,7 +759,7 @@
         "enviromental_protection" : 0,
         "encumbrance" : 0,
         "bashing" : -4,
-        "flags" : ["VARSIZE","WATER_FRIENDLY"],
+        "flags" : ["VARSIZE", "WATER_FRIENDLY"],
         "coverage" : 35,
         "material_thickness" : 1
     },
@@ -822,7 +822,7 @@
         "color" : "light_gray",
         "covers" : ["LEGS"],
         "to_hit" : 1,
-        "storage" : 8,
+        "storage" : 7,
         "symbol" : "[",
         "description" : "A pair of shorts lined with pockets, offering decent storage.",
         "price" : 18000,
@@ -972,7 +972,7 @@
         "color" : "light_gray",
         "covers" : ["LEGS"],
         "to_hit" : 0,
-        "storage" : 12,
+        "storage" : 10,
         "symbol" : "[",
         "description" : "A pair of pants lined with pockets, offering lots of storage.",
         "price" : 28000,
@@ -997,7 +997,7 @@
         "color" : "green",
         "covers" : ["LEGS"],
         "to_hit" : 0,
-        "storage" : 14,
+        "storage" : 10,
         "symbol" : "[",
         "description" : "A tough pair of pants lined with pockets. Favored by the military.",
         "price" : 31500,
@@ -1632,7 +1632,7 @@
         "color" : "pink",
         "covers" : ["LEGS", "TORSO", "ARMS"],
         "to_hit" : -3,
-        "storage" : 16,
+        "storage" : 13,
         "symbol" : "[",
         "description" : "A colorful and ridiculous costume fit for a clown. Provides decent storage.",
         "price" : 2000,
@@ -2305,7 +2305,7 @@
         "enviromental_protection" : 10,
         "encumbrance" : 2,
         "bashing" : -5,
-        "flags" : ["VARSIZE","WATERPROOF", "HOOD", "RAINPROOF", "RAD_RESIST"],
+        "flags" : ["VARSIZE","WATERPROOF", "HOOD", "RAINPROOF", "RAD_RESIST", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 2
     },
@@ -2330,7 +2330,7 @@
         "enviromental_protection" : 9,
         "encumbrance" : 3,
         "bashing" : -5,
-        "flags" : ["VARSIZE", "WATERPROOF", "HOOD", "RAINPROOF", "STURDY", "RAD_RESIST"],
+        "flags" : ["VARSIZE", "WATERPROOF", "HOOD", "RAINPROOF", "STURDY", "RAD_RESIST", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 3
     },
@@ -2354,7 +2354,7 @@
         "enviromental_protection" : 20,
         "encumbrance" : 4,
         "bashing" : -5,
-        "flags" : ["VARSIZE", "WATERPROOF", "RAINPROOF", "RAD_PROOF","ELECTRIC_IMMUNE"],
+        "flags" : ["VARSIZE", "WATERPROOF", "RAINPROOF", "RAD_PROOF","ELECTRIC_IMMUNE", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 2
     },
@@ -2379,7 +2379,7 @@
         "enviromental_protection" : 20,
         "encumbrance" : 5,
         "bashing" : -5,
-        "flags" : ["VARSIZE", "WATERPROOF", "RAINPROOF", "STURDY", "RAD_PROOF","ELECTRIC_IMMUNE"],
+        "flags" : ["VARSIZE", "WATERPROOF", "RAINPROOF", "STURDY", "RAD_PROOF", "ELECTRIC_IMMUNE", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 3
     },
@@ -2478,7 +2478,7 @@
         "enviromental_protection" : 0,
         "encumbrance" : 1,
         "bashing" : -3,
-        "flags" : ["VARSIZE", "WATER_FRIENDLY", "STURDY"],
+        "flags" : ["VARSIZE", "WATER_FRIENDLY", "STURDY", "BELTED"],
         "coverage" : 30,
         "material_thickness" : 2
     },
@@ -2502,7 +2502,7 @@
         "enviromental_protection" : 0,
         "encumbrance" : 2,
         "bashing" : -3,
-        "flags" : ["VARSIZE", "WATER_FRIENDLY", "STURDY"],
+        "flags" : ["VARSIZE", "WATER_FRIENDLY", "STURDY", "BELTED"],
         "coverage" : 40,
         "material_thickness" : 2
     },
@@ -3530,7 +3530,7 @@
         "enviromental_protection" : 1,
         "encumbrance" : 2,
         "bashing" : -4,
-        "flags" : ["VARSIZE", "POCKETS", "WATERPROOF", "RAINPROOF", "HOOD"],
+        "flags" : ["VARSIZE", "POCKETS", "WATERPROOF", "RAINPROOF", "HOOD", "OUTER"],
         "coverage" : 95,
         "material_thickness" : 2
     },
@@ -3554,7 +3554,7 @@
         "enviromental_protection" : 1,
         "encumbrance" : 0,
         "bashing" : -4,
-        "flags" : ["WATERPROOF"],
+        "flags" : ["WATERPROOF", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 2
     },
@@ -3627,7 +3627,7 @@
         "enviromental_protection" : 1,
         "encumbrance" : 1,
         "bashing" : -5,
-        "flags" : ["VARSIZE", "POCKETS"],
+        "flags" : ["VARSIZE", "POCKETS", "OUTER"],
         "coverage" : 90,
         "material_thickness" : 3
     },
@@ -3675,7 +3675,7 @@
         "enviromental_protection" : 1,
         "encumbrance" : 2,
         "bashing" : -5,
-        "flags" : ["VARSIZE", "POCKETS"],
+        "flags" : ["VARSIZE", "POCKETS", "OUTER"],
         "coverage" : 90,
         "material_thickness" : 3
     },
@@ -3699,7 +3699,7 @@
         "enviromental_protection" : 1,
         "encumbrance" : 3,
         "bashing" : -5,
-        "flags" : ["VARSIZE", "POCKETS"],
+        "flags" : ["VARSIZE", "POCKETS", "OUTER"],
         "coverage" : 90,
         "material_thickness" : 4
     },
@@ -3724,7 +3724,7 @@
         "enviromental_protection" : 5,
         "encumbrance" : 1,
         "bashing" : -5,
-        "flags" : ["VARSIZE", "POCKETS", "HOOD", "STURDY", "WATERPROOF", "RAINPROOF"],
+        "flags" : ["VARSIZE", "POCKETS", "HOOD", "STURDY", "WATERPROOF", "RAINPROOF", "OUTER"],
         "coverage" : 85,
         "material_thickness" : 3
     },
@@ -3738,7 +3738,7 @@
         "color" : "green",
         "covers" : ["LEGS"],
         "to_hit" : 0,
-        "storage" : 20,
+        "storage" : 14,
         "symbol" : "[",
         "description" : "A pair of kevlar armored pants covered with pouches and pockets. Custom built to be durable, comfortable, and easy to wear.",
         "price" : 38000,
@@ -3774,7 +3774,7 @@
         "enviromental_protection" : 1,
         "encumbrance" : 3,
         "bashing" : -5,
-        "flags" : ["VARSIZE", "POCKETS", "HOOD"],
+        "flags" : ["VARSIZE", "POCKETS", "HOOD", "OUTER"],
         "coverage" : 95,
         "material_thickness" : 5
     },
@@ -3798,7 +3798,7 @@
         "enviromental_protection" : 2,
         "encumbrance" : 3,
         "bashing" : -5,
-        "flags" : ["VARSIZE", "POCKETS"],
+        "flags" : ["VARSIZE", "POCKETS", "OUTER"],
         "coverage" : 95,
         "material_thickness" : 4
     },
@@ -3822,7 +3822,7 @@
         "enviromental_protection" : 0,
         "encumbrance" : 2,
         "bashing" : -4,
-        "flags" : ["VARSIZE", "POCKETS"],
+        "flags" : ["VARSIZE", "POCKETS", "OUTER"],
         "coverage" : 95,
         "material_thickness" : 6
     },
@@ -3881,7 +3881,7 @@
         "color" : "brown",
         "covers" : ["TORSO"],
         "to_hit" : 0,
-        "storage" : 10,
+        "storage" : 8,
         "symbol" : "[",
         "description" : "A common belt with pockets widely used by handymen and electricians.",
         "price" : 20000,
@@ -3917,7 +3917,7 @@
         "enviromental_protection" : 0,
         "encumbrance" : 0,
         "bashing" : -3,
-        "flags" : ["VARSIZE", "WATER_FRIENDLY"],
+        "flags" : ["VARSIZE", "WATER_FRIENDLY", "BELTED"],
         "coverage" : 20,
         "material_thickness" : 2
     },
@@ -3941,7 +3941,7 @@
         "enviromental_protection" : 0,
         "encumbrance" : 1,
         "bashing" : -3,
-        "flags" : ["VARSIZE", "POCKETS"],
+        "flags" : ["VARSIZE", "POCKETS", "OUTER"],
         "coverage" : 90,
         "material_thickness" : 2
     },
@@ -4565,6 +4565,7 @@
         "encumbrance" : 0,
         "bashing" : -5,
         "coverage" : 85,
+        "flags" : ["OUTER"],
         "material_thickness" : 2
     },
     {
@@ -4587,7 +4588,7 @@
         "enviromental_protection" : 2,
         "encumbrance" : 1,
         "bashing" : -5,
-        "flags" : ["OVERSIZE" , "POCKETS"],
+        "flags" : ["OVERSIZE" , "POCKETS", "OUTER"],
         "note": "pockets so you can use it as improvised hand-wrap",
         "coverage" : 85,
         "material_thickness" : 2
@@ -4613,6 +4614,7 @@
         "encumbrance" : 1,
         "bashing" : -5,
         "coverage" : 85,
+        "flags" : ["OUTER"],
         "material_thickness" : 4
     },
     {
@@ -4635,7 +4637,7 @@
         "enviromental_protection" : 2,
         "encumbrance" : 1,
         "bashing" : -5,
-        "flags" : ["OVERSIZE" , "POCKETS"],
+        "flags" : ["OVERSIZE" , "POCKETS", "OUTER"],
         "note": "pockets so you can use it as improvised hand-wrap",
         "coverage" : 85,
         "material_thickness" : 4
@@ -5267,7 +5269,7 @@
         "enviromental_protection" : 6,
         "encumbrance" : 3,
         "bashing" : -5,
-        "flags" : ["VARSIZE", "POCKETS", "STURDY", "WATERPROOF", "RAINPROOF"],
+        "flags" : ["VARSIZE", "POCKETS", "STURDY", "WATERPROOF", "RAINPROOF", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 4
     },
@@ -5331,16 +5333,17 @@
         "volume" : 2,
         "material_thickness" : 0,
         "storage" : 4,
+        "covers" : ["TORSO"],
         "description" : "A stout firefighter's belt. Useful for keeping your bunker gear up, it also doubles as an equipment belt, with several attachment points and loops.",
         "weight" : 210,
-        "to_hit" : -1,
+        "to_hit" : 0,
         "color" : "yellow",
         "encumbrance" : 0,
         "price" : 9000,
         "material" : ["leather", "steel"],
         "coverage" : 0,
         "symbol" : "[",
-        "bashing" : 2,
+        "bashing" : 5,
         "flags" : ["FANCY"],
         "cutting" : 0,
         "warmth" : 0,
@@ -5957,6 +5960,7 @@
         "encumbrance" : 1,
         "bashing" : -4,
         "coverage" : 30,
+        "flags" : ["BELTED"],
         "material_thickness" : 2
     },
     {
@@ -5980,6 +5984,7 @@
         "encumbrance" : 1,
         "bashing" : -4,
         "coverage" : 30,
+        "flags" : ["BELTED"],
         "material_thickness" : 3
     },
     {
@@ -5990,7 +5995,7 @@
         "color" : "yellow",
         "covers" : ["TORSO"],
         "to_hit" : 0,
-        "storage" : 40,
+        "storage" : 38,
         "symbol" : "[",
         "description" : "A lightweight mesh backpack, commonly used by swimmers and divers.",
         "price" : 32000,
@@ -6003,7 +6008,7 @@
         "encumbrance" : 1,
         "bashing" : -4,
         "coverage" : 40,
-        "flags" : ["WATER_FRIENDLY"],
+        "flags" : ["WATER_FRIENDLY", "BELTED"],
         "material_thickness" : 1
     },
     {
@@ -6027,7 +6032,7 @@
         "encumbrance" : 1,
         "bashing" : -4,
         "coverage" : 35,
-        "flags" : ["WATERPROOF"],
+        "flags" : ["WATERPROOF", "BELTED"],
         "material_thickness" : 2
     },
     {
@@ -6051,6 +6056,7 @@
         "encumbrance" : 2,
         "bashing" : -4,
         "coverage" : 40,
+        "flags" : ["BELTED"],
         "material_thickness" : 3
     },
     {
@@ -6074,6 +6080,7 @@
         "encumbrance" : 3,
         "bashing" : -4,
         "coverage" : 50,
+        "flags" : ["BELTED"],
         "material_thickness" : 3
     },
     {
@@ -6121,6 +6128,7 @@
         "encumbrance" : 0,
         "bashing" : 1,
         "coverage" : 30,
+        "flags" : ["BELTED"],
         "material_thickness" : 1
     },
     {
@@ -6131,7 +6139,7 @@
         "color" : "green",
         "covers" : ["TORSO"],
         "to_hit" : 1,
-        "storage" : 30,
+        "storage" : 18,
         "symbol" : "[",
         "description" : "The obvious choice for outdoor athletes, this ergonomic backpack is light and easy to wear, ensuring comfort when carrying heavy and bulky items.",
         "price" : 24000,
@@ -6144,7 +6152,7 @@
         "encumbrance" : 0,
         "bashing" : 1,
         "coverage" : 20,
-        "flags" : ["WATERPROOF"],
+        "flags" : ["WATERPROOF", "BELTED"],
         "material_thickness" : 2
     },
     {
@@ -6152,8 +6160,9 @@
         "id" : "fanny",
         "name" : "fanny pack",
         "volume" : 1,
-        "material_thickness" : 0,
+        "material_thickness" : 1,
         "storage" : 6,
+        "covers" : ["TORSO"],
         "description" : "Provides a bit of extra storage without encumbering you at all.",
         "weight" : 272,
         "to_hit" : 2,
@@ -6161,12 +6170,13 @@
         "encumbrance" : 0,
         "price" : 10000,
         "material" : ["cotton", "plastic"],
-        "coverage" : 0,
+        "coverage" : 10,
         "symbol" : "[",
         "bashing" : 1,
         "cutting" : 0,
         "warmth" : 0,
         "enviromental_protection" : 0,
+        "flags" : ["BELTED"],
         "phase" : "solid"
     },
     {
@@ -6176,7 +6186,8 @@
         "name_plural" : "tactical dump pouches",
         "volume" : 2,
         "material_thickness" : 1,
-        "storage" : 12,
+        "storage" : 8,
+        "covers" : ["TORSO"],
         "description" : "An expandable pouch secured with straps. Provides a bit of extra storage without encumbering you at all.",
         "weight" : 288,
         "to_hit" : 2,
@@ -6184,12 +6195,13 @@
         "encumbrance" : 0,
         "price" : 14000,
         "material" : ["kevlar", "plastic"],
-        "coverage" : 0,
+        "coverage" : 10,
         "symbol" : "[",
         "bashing" : 1,
         "cutting" : 0,
         "warmth" : 0,
         "enviromental_protection" : 0,
+        "flags" : ["BELTED"],
         "phase" : "solid"
     },
     {
@@ -6197,21 +6209,23 @@
         "id" : "leather_belt",
         "name" : "leather belt",
         "volume" : 1,
-        "material_thickness" : 0,
+        "material_thickness" : 1,
         "storage" : 2,
+        "covers" : ["TORSO"],
         "description" : "A leather belt. Useful for making your pair of pants fit, but you could also use it to strap a pistol or something similarly sized to your body.",
         "weight" : 102,
-        "to_hit" : -1,
+        "to_hit" : 0,
         "color" : "brown",
         "encumbrance" : 0,
         "price" : 9000,
         "material" : ["leather", "null"],
-        "coverage" : 0,
+        "coverage" : 5,
         "symbol" : "[",
-        "bashing" : -2,
+        "bashing" : 5,
         "cutting" : 0,
         "warmth" : 0,
         "enviromental_protection" : 0,
+        "flags" : ["BELTED"],
         "phase" : "solid"
     },
     {
@@ -6234,6 +6248,7 @@
         "warmth" : 1,
         "phase" : "solid",
         "encumbrance" : 0,
+        "flags" : ["BELTED"],
         "material_thickness" : 2,
         "use_action" : "HOLSTER_PISTOL"
     },
@@ -6307,7 +6322,7 @@
         "encumbrance" : 0,
         "coverage" : 5,
         "material_thickness" : 2,
-        "flags" : ["QUIVER_20"],
+        "flags" : ["QUIVER_20", "BELTED"],
         "use_action" : "QUIVER"
     },
     {
@@ -6332,7 +6347,7 @@
         "encumbrance" : 0,
         "coverage" : 15,
         "material_thickness" : 2,
-        "flags" : ["QUIVER_60"],
+        "flags" : ["QUIVER_60", "BELTED"],
         "use_action" : "QUIVER"
     },
     {
@@ -6341,6 +6356,7 @@
         "name" : "scabbard",
         "weight" : 1360,
         "color" : "brown",
+        "covers" : ["TORSO"],
         "to_hit" : 0,
         "storage" : 0,
         "symbol" : "[",
@@ -6356,6 +6372,7 @@
         "encumbrance" : 0,
         "coverage" : 15,
         "material_thickness" : 2,
+        "flags" : ["BELTED"],
         "use_action": "SHEATH_SWORD"
     },
     {
@@ -6367,7 +6384,7 @@
         "color" : "light_gray",
         "covers" : ["TORSO"],
         "to_hit" : 1,
-        "storage" : 12,
+        "storage" : 9,
         "symbol" : "[",
         "description" : "A makeshift bag, cobbled together from rags. Really gets in the way, but provides a decent amount of storage.",
         "price" : 11000,
@@ -6380,6 +6397,7 @@
         "encumbrance" : 1,
         "bashing" : 1,
         "coverage" : 15,
+        "flags" : ["BELTED"],
         "material_thickness" : 1
     },
     {
@@ -6391,7 +6409,7 @@
         "color" : "brown",
         "covers" : ["TORSO"],
         "to_hit" : 1,
-        "storage" : 12,
+        "storage" : 6,
         "symbol" : "[",
         "description" : "A bag stitched together from leather scraps. Doesn't hold an awful lot but is easy to wear.",
         "price" : 11000,
@@ -6404,6 +6422,7 @@
         "encumbrance" : 0,
         "bashing" : 1,
         "coverage" : 15,
+        "flags" : ["BELTED"],
         "material_thickness" : 1
     },
     {
@@ -6864,7 +6883,7 @@
         "encumbrance" : 5,
         "bashing" : -5,
         "coverage" : 100,
-        "flags" : ["OVERSIZE"],
+        "flags" : ["OVERSIZE", "OUTER"],
         "material_thickness" : 4
     },
     {
@@ -6888,7 +6907,7 @@
         "encumbrance" : 6,
         "bashing" : -5,
         "coverage" : 100,
-        "flags" : ["OVERSIZE"],
+        "flags" : ["OVERSIZE", "OUTER"],
         "material_thickness" : 5
     },
     {
@@ -6912,7 +6931,7 @@
         "encumbrance" : 10,
         "bashing" : -5,
         "coverage" : 100,
-        "flags" : ["OVERSIZE"],
+        "flags" : ["OVERSIZE", "OUTER"],
         "material_thickness" : 5
     },
     {
@@ -6936,7 +6955,7 @@
         "encumbrance" : 10,
         "bashing" : -5,
         "coverage" : 100,
-        "flags" : ["OVERSIZE"],
+        "flags" : ["OVERSIZE", "OUTER"],
         "material_thickness" : 6
     },
     {
@@ -6984,7 +7003,7 @@
         "encumbrance" : 4,
         "bashing" : -5,
         "coverage" : 85,
-        "flags" : ["OVERSIZE"],
+        "flags" : ["OVERSIZE", "OUTER"],
         "material_thickness" : 4
     },
     {
@@ -7008,7 +7027,7 @@
         "encumbrance" : 1,
         "bashing" : -5,
         "coverage" : 65,
-        "flags" : ["OVERSIZE", "HOOD"],
+        "flags" : ["OVERSIZE", "HOOD", "OUTER"],
         "material_thickness" : 3
     },
     {
@@ -7032,7 +7051,7 @@
         "encumbrance" : 5,
         "bashing" : -5,
         "coverage" : 65,
-        "flags" : ["OVERSIZE", "HOOD", "WATERPROOF"],
+        "flags" : ["OVERSIZE", "HOOD", "WATERPROOF", "OUTER"],
         "material_thickness" : 2
     },
     {
@@ -7056,7 +7075,7 @@
         "encumbrance" : 1,
         "bashing" : -5,
         "coverage" : 65,
-        "flags" : ["OVERSIZE", "HOOD"],
+        "flags" : ["OVERSIZE", "HOOD", "OUTER"],
         "material_thickness" : 3
     },
     {
@@ -7080,7 +7099,7 @@
         "encumbrance" : 1,
         "bashing" : -5,
         "coverage" : 65,
-        "flags" : ["OVERSIZE", "HOOD"],
+        "flags" : ["OVERSIZE", "HOOD", "OUTER"],
         "material_thickness" : 3
     },
     {
@@ -7104,7 +7123,7 @@
         "encumbrance" : 0,
         "bashing" : -5,
         "coverage" : 95,
-        "flags" : ["OVERSIZE"],
+        "flags" : ["OVERSIZE", "OUTER"],
         "material_thickness" : 4
     },
     {
@@ -7129,7 +7148,7 @@
         "warmth" : 90,
         "encumbrance" : 5,
         "bashing" : 1,
-        "flags" : ["WATERPROOF","STURDY","ELECTRIC_IMMUNE"],
+        "flags" : ["WATERPROOF", "STURDY", "ELECTRIC_IMMUNE"],
         "coverage" : 100,
         "material_thickness" : 11
     },
@@ -7157,7 +7176,7 @@
         "bashing" : 1,
         "coverage" : 100,
         "material_thickness" : 11,
-        "flags" : ["WATCH","WATERPROOF","STURDY"]
+        "flags" : ["WATCH", "WATERPROOF", "STURDY"]
     },
     {
         "type" : "ARMOR",
@@ -7181,7 +7200,7 @@
         "warmth" : 60,
         "encumbrance" : 4,
         "bashing" : 1,
-        "flags" : ["WATERPROOF","STURDY","ELECTRIC_IMMUNE"],
+        "flags" : ["WATERPROOF", "STURDY", "ELECTRIC_IMMUNE"],
         "coverage" : 100,
         "material_thickness" : 9
     },
@@ -7209,7 +7228,7 @@
         "bashing" : 1,
         "coverage" : 100,
         "material_thickness" : 9,
-        "flags" : ["WATCH","WATERPROOF","STURDY"]
+        "flags" : ["WATCH", "WATERPROOF", "STURDY"]
     },
     {
         "type" : "ARMOR",
@@ -7233,7 +7252,7 @@
         "warmth" : 60,
         "encumbrance" : 5,
         "bashing" : 1,
-        "flags" : ["WATERPROOF","STURDY","ELECTRIC_IMMUNE"],
+        "flags" : ["WATERPROOF", "STURDY", "ELECTRIC_IMMUNE"],
         "coverage" : 100,
         "material_thickness" : 13
     },
@@ -7261,7 +7280,7 @@
         "bashing" : 1,
         "coverage" : 100,
         "material_thickness" : 13,
-        "flags" : ["WATCH","WATERPROOF","STURDY"]
+        "flags" : ["WATCH", "WATERPROOF", "STURDY"]
     },
     {
         "type" : "ARMOR",
@@ -7284,7 +7303,7 @@
         "encumbrance" : 4,
         "bashing" : 1,
         "symbol" : "[",
-        "flags" : ["WATERPROOF","STURDY"],
+        "flags" : ["WATERPROOF", "STURDY", "BELTED"],
         "coverage" : 100,
         "material_thickness" : 10
     },
@@ -7310,7 +7329,7 @@
         "warmth" : 50,
         "encumbrance" : 4,
         "bashing" : 1,
-        "flags" : ["WATERPROOF","STURDY"],
+        "flags" : ["WATERPROOF", "STURDY"],
         "coverage" : 95,
         "material_thickness" : 8
     },
@@ -7338,7 +7357,7 @@
         "bashing" : 1,
         "coverage" : 95,
         "material_thickness" : 8,
-        "flags" : ["WATERPROOF","STURDY"]
+        "flags" : ["WATERPROOF", "STURDY"]
     },
     {
         "type" : "ARMOR",
@@ -7772,7 +7791,7 @@
         "enviromental_protection" : 10,
         "encumbrance" : 1,
         "bashing" : 6,
-        "flags" : ["VARSIZE", "WATERPROOF", "POCKETS", "HOOD","RAINPROOF", "STURDY"],
+        "flags" : ["VARSIZE", "WATERPROOF", "POCKETS", "HOOD", "RAINPROOF", "STURDY"],
         "coverage" : 100,
         "material_thickness" : 4
     },
@@ -7797,7 +7816,7 @@
         "enviromental_protection" : 10,
         "encumbrance" : 2,
         "bashing" : 6,
-        "flags" : ["VARSIZE", "WATERPROOF", "POCKETS", "HOOD","RAINPROOF", "STURDY"],
+        "flags" : ["VARSIZE", "WATERPROOF", "POCKETS", "HOOD", "RAINPROOF", "STURDY"],
         "coverage" : 100,
         "material_thickness" : 5
     },
@@ -7978,7 +7997,7 @@
         "enviromental_protection" : 10,
         "encumbrance" : 3,
         "bashing" : 10,
-        "flags" : ["VARSIZE", "WATERPROOF", "STURDY"],
+        "flags" : ["VARSIZE", "WATERPROOF", "STURDY", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 6
     },
@@ -8131,7 +8150,7 @@
         "enviromental_protection" : 10,
         "encumbrance" : 3,
         "bashing" : 10,
-        "flags" : ["VARSIZE", "WATERPROOF", "STURDY"],
+        "flags" : ["VARSIZE", "WATERPROOF", "STURDY", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 6
     },
@@ -8284,7 +8303,7 @@
         "enviromental_protection" : 10,
         "encumbrance" : 3,
         "bashing" : 10,
-        "flags" : ["VARSIZE", "WATER_FRIENDLY", "STURDY"],
+        "flags" : ["VARSIZE", "WATER_FRIENDLY", "STURDY", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 3
     },
@@ -8468,7 +8487,7 @@
         "enviromental_protection" : 10,
         "encumbrance" : 2,
         "bashing" : 10,
-        "flags" : ["VARSIZE", "WATERPROOF", "STURDY"],
+        "flags" : ["VARSIZE", "WATERPROOF", "STURDY", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 4
     },
@@ -8494,7 +8513,7 @@
         "enviromental_protection" : 10,
         "encumbrance" : 3,
         "bashing" : 10,
-        "flags" : ["VARSIZE", "WATERPROOF", "STURDY"],
+        "flags" : ["VARSIZE", "WATERPROOF", "STURDY", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 5
     },
@@ -8647,7 +8666,7 @@
         "enviromental_protection" : 0,
         "encumbrance" : 3,
         "bashing" : 8,
-        "flags" : ["VARSIZE"],
+        "flags" : ["VARSIZE", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 3
     },
@@ -8837,7 +8856,7 @@
         "color" : "dark_gray",
         "covers" : ["LEGS"],
         "to_hit" : 0,
-        "storage" : 18,
+        "storage" : 8,
         "symbol" : "[",
         "description" : "A set of pouches that can be worn on the thighs using buckled straps. This variety is favored by the military.",
         "price" : 20000,
@@ -8849,7 +8868,7 @@
         "enviromental_protection" : 0,
         "encumbrance" : 0,
         "bashing" : -3,
-        "flags" : ["VARSIZE", "WATER_FRIENDLY"],
+        "flags" : ["VARSIZE", "WATER_FRIENDLY", "BELTED"],
         "coverage" : 20,
         "material_thickness" : 2
     },
@@ -9081,6 +9100,7 @@
         "encumbrance" : 4,
         "bashing" : -1,
         "coverage" : 50,
+        "flags" : ["BELTED"],
         "material_thickness" : 3
     },
     {
@@ -9140,7 +9160,7 @@
         "color" : "light_gray",
         "covers" : ["ARMS", "HANDS"],
         "to_hit" : -2,
-        "storage" : 30,
+        "storage" : 24,
         "symbol" : "[",
         "description" : "Useful for carrying money, documents, or smuggled goods.",
         "price" : 24000,
@@ -9325,7 +9345,7 @@
         "enviromental_protection" : 10,
         "encumbrance" : 4,
         "bashing" : 10,
-        "flags" : ["OVERSIZE", "VARSIZE", "WATERPROOF", "STURDY"],
+        "flags" : ["OVERSIZE", "VARSIZE", "WATERPROOF", "STURDY", "OUTER"],
         "coverage" : 100,
         "material_thickness" : 4
     },

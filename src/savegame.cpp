@@ -296,7 +296,7 @@ void game::load_weather(std::ifstream & fin) {
    if (fin.peek() == 'l') {
        std::string line;
        getline(fin, line);
-       lightning_active = ((*line.end()) == '1');
+       lightning_active = (line.compare("lightning: 1") == 0);
    } else {
        lightning_active = false;
    }
@@ -319,7 +319,7 @@ void game::load_weather(std::ifstream & fin) {
            debugmsg("weather zones unimplemented. bad data '%s'", data.c_str() );
         }
      }
-     std::map<int, weather_segment>::iterator w_it = weather_log.lower_bound(int(calendar::turn));
+     std::map<int, weather_segment>::iterator w_it = weather_log.upper_bound(int(calendar::turn));
     if ( w_it != weather_log.end() ) {
         // lower_bound returns the smallest key, that
         // is >= turn. (The key in that map is the deadline

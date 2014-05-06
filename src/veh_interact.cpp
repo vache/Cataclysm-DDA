@@ -42,6 +42,7 @@ veh_interact::veh_interact ()
     main_context.register_action("REPAIR");
     main_context.register_action("REFILL");
     main_context.register_action("REMOVE");
+    main_context.register_action("RENAME");
     main_context.register_action("SIPHON");
     main_context.register_action("TIRE_CHANGE");
     main_context.register_action("DRAIN");
@@ -1344,7 +1345,7 @@ void veh_interact::countDurability()
     totalDurabilityText = getDurabilityDescription(durabilityPercent);
 }
 
-nc_color veh_interact::getDurabilityColor(const int &dur)
+nc_color getDurabilityColor(const int &dur)
 {
     if (dur >= 95) {
         return c_green;
@@ -1551,7 +1552,7 @@ void complete_vehicle ()
             veh->charge_battery(batterycharges);
         }
 
-        add_msg (_("You install a %s into the %s."),
+        add_msg (m_good, _("You install a %s into the %s."),
                     vehicle_part_types[part_id].name.c_str(), veh->name.c_str());
         g->u.practice (calendar::turn, "mechanics", vehicle_part_types[part_id].difficulty * 5 + 20);
         break;
@@ -1572,7 +1573,7 @@ void complete_vehicle ()
         tools.push_back(component("toolset", welder_charges / 20));
         g->consume_tools(&g->u, tools, true);
         veh->parts[vehicle_part].hp = veh->part_info(vehicle_part).durability;
-        add_msg (_("You repair the %s's %s."),
+        add_msg (m_good, _("You repair the %s's %s."),
                     veh->name.c_str(), veh->part_info(vehicle_part).name.c_str());
         g->u.practice (calendar::turn, "mechanics", (veh->part_info(vehicle_part).difficulty + dd) * 5 + 20);
         break;

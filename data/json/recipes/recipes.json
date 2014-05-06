@@ -12966,6 +12966,40 @@
   ]
 },{
         "type" : "recipe",
+  "result": "battery_ups",
+  "category": "CC_ELECTRONIC",
+  "subcategory": "CSC_ELECTRONIC_COMPONENTS",
+  "skill_used": "electronics",
+  "difficulty": 5,
+  "time": 45000,
+  "reversible": true,
+  "decomp_learn": 4,
+  "autolearn": true,
+  "book_learn": [[ "advanced_electronics", 4] , [ "recipe_lab_elec", 4 ] , [ "textbook_anarch", 4]],
+  "qualities" : [
+    {"id":"SCREW","level":1,"amount":1}
+  ], "tools": [
+    [
+      [ "soldering_iron", 24 ],
+      [ "toolset", 2 ]
+    ]
+  ],
+  "components": [
+    [
+      [ "power_supply", 4 ]
+    ],
+    [
+      [ "amplifier", 3 ]
+    ],
+    [
+      [ "scrap", 4 ]
+    ],
+    [
+      [ "cable", 10 ]
+    ]
+  ]
+},{
+        "type" : "recipe",
   "result" : "adv_UPS_off",
   "category" : "CC_ELECTRONIC",
   "subcategory": "CSC_ELECTRONIC_COMPONENTS",
@@ -19486,7 +19520,7 @@
       [ "bolt_wood", 4 ]
     ],
     [
-      [ "string_6", 2 ],
+      [ "string_6", 6 ],
       [ "string_36", 1 ]
     ]
   ]
@@ -24677,7 +24711,7 @@
     ],
   "components": [
     [
-      [ "toasterpastryfrozen", 1 ]
+      [ "toasterpastryfrozen", 2 ]
     ]
   ]
 },{
@@ -26283,6 +26317,9 @@
      [
       [ "steel_chunk", 4 ],
       [ "scrap", 12 ]
+     ],
+     [
+      [ "kevlar_plate", 4 ]
      ],
      [
       [ "duct_tape", 100 ]
@@ -28066,6 +28103,7 @@
     [
        [ "apple", 2 ],
        [ "blueberries", 2 ],
+       [ "strawberries", 2 ],
        [ "orange", 2 ],
        [ "lemon", 2 ],
        [ "banana", 2 ],

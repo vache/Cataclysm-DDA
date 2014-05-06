@@ -158,15 +158,16 @@ void monster::spawn(int x, int y)
     _posy = y;
 }
 
-std::string monster::name()
+std::string monster::name(unsigned int quantity)
 {
  if (!type) {
   debugmsg ("monster::name empty type!");
   return std::string();
  }
  if (unique_name != "")
-  return type->name + ": " + unique_name;
- return type->name;
+  return string_format("%s: %s",
+                       (type->nname(quantity).c_str()), unique_name.c_str());
+ return ngettext(type->name.c_str(), type->name_plural.c_str(), quantity);
 }
 
 // MATERIALS-TODO: put description in materials.json?
@@ -812,10 +813,10 @@ void monster::melee_attack(Creature &target, bool, matec_id) {
     } else if (is_hallucination() || dealt_dam.total_damage() > 0) {
         if (target.is_player()) {
             if (u_see_me) {
-                add_msg(_("The %1$s hits your %2$s."), name().c_str(),
+                add_msg(m_bad, _("The %1$s hits your %2$s."), name().c_str(),
                         body_part_name(bp_hit, random_side(bp_hit)).c_str());
             } else {
-                add_msg(_("Something hits your %s."),
+                add_msg(m_bad, _("Something hits your %s."),
                         body_part_name(bp_hit, random_side(bp_hit)).c_str());
             }
         } else {

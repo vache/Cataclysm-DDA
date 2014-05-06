@@ -373,7 +373,7 @@ void mapgen_null(map *m, oter_id, mapgendata, int, float)
     for (int i = 0; i < SEEX * 2; i++) {
         for (int j = 0; j < SEEY * 2; j++) {
             m->ter_set(i, j, t_null);
-            m->radiation(i, j) = 0;
+            m->set_radiation(i, j, 0);
         }
     }
 }
@@ -391,10 +391,10 @@ void mapgen_crater(map *m, oter_id, mapgendata dat, int, float)
            if (rng(0, dat.w_fac) <= i && rng(0, dat.e_fac) <= SEEX * 2 - 1 - i &&
                rng(0, dat.n_fac) <= j && rng(0, dat.s_fac) <= SEEX * 2 - 1 - j ) {
                m->ter_set(i, j, t_rubble);
-               m->radiation(i, j) = rng(0, 4) * rng(0, 2);
+               m->set_radiation(i, j, rng(0, 4) * rng(0, 2));
            } else {
                m->ter_set(i, j, dat.groundcover());
-               m->radiation(i, j) = rng(0, 2) * rng(0, 2) * rng(0, 2);
+               m->set_radiation(i, j, rng(0, 2) * rng(0, 2) * rng(0, 2));
             }
         }
     }
@@ -543,6 +543,12 @@ void mapgen_forest_general(map *m, oter_id terrain_type, mapgendata dat, int tur
         int x = SEEX / 2 + rng(0, SEEX), y = SEEY / 2 + rng(0, SEEY);
         for (int i = 0; i < 20; i++) {
             if (x >= 0 && x < SEEX * 2 && y >= 0 && y < SEEY * 2) {
+                if (m->ter(x, y) == t_swater_sh) {
+                    m->ter_set(x, y, t_swater_dp);
+                } else if ( dat.is_groundcover( m->ter(x, y) ) ||
+                         m->ter(x, y) == t_underbrush) {
+                    m->ter_set(x, y, t_swater_sh);
+                }
                 if (m->ter(x, y) == t_water_sh) {
                     m->ter_set(x, y, t_water_dp);
                 } else if ( dat.is_groundcover( m->ter(x, y) ) ||
@@ -565,7 +571,7 @@ void mapgen_forest_general(map *m, oter_id terrain_type, mapgendata dat, int tur
                 int wx = rng(0, SEEX * 2 -1), wy = rng(0, SEEY - 1);
                 if (dat.is_groundcover( m->ter(wx, wy) ) ||
                     m->ter(wx, wy) == t_underbrush) {
-                    m->ter_set(wx, wy, t_water_sh);
+                    m->ter_set(wx, wy, t_swater_sh);
                 }
             }
             factor = dat.e_fac + (dat.ne_fac / 2) + (dat.se_fac / 2);
@@ -581,7 +587,7 @@ void mapgen_forest_general(map *m, oter_id terrain_type, mapgendata dat, int tur
                 int wx = rng(0, SEEX * 2 - 1), wy = rng(SEEY, SEEY * 2 - 1);
                 if (dat.is_groundcover( m->ter(wx, wy) ) ||
                       m->ter(wx, wy) == t_underbrush) {
-                    m->ter_set(wx, wy, t_water_sh);
+                    m->ter_set(wx, wy, t_swater_sh);
                 }
             }
             factor = dat.w_fac + (dat.nw_fac / 2) + (dat.sw_fac / 2);
@@ -598,7 +604,7 @@ void mapgen_forest_general(map *m, oter_id terrain_type, mapgendata dat, int tur
             x = rng(0, SEEX * 2 - 1);
             y = rng(0, SEEY * 2 - 1);
             m->add_trap(x, y, tr_sinkhole);
-            if (m->ter(x, y) != t_water_sh) {
+            if (m->ter(x, y) != t_swater_sh && m->ter(x, y) != t_water_sh) {
                 m->ter_set(x, y, dat.groundcover());
             }
         }

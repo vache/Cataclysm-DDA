@@ -186,6 +186,7 @@ void Item_factory::init(){
     iuse_function_list["PKILL"] = &iuse::pkill;
     iuse_function_list["XANAX"] = &iuse::xanax;
     iuse_function_list["CIG"] = &iuse::cig;
+    iuse_function_list["ECIG"] = &iuse::ecig;
     iuse_function_list["ANTIBIOTIC"] = &iuse::antibiotic;
     iuse_function_list["EYEDROPS"] = &iuse::eyedrops;
     iuse_function_list["FUNGICIDE"] = &iuse::fungicide;
@@ -342,6 +343,7 @@ void Item_factory::init(){
     iuse_function_list["SEED"] = &iuse::seed;
     iuse_function_list["OXYGEN_BOTTLE"] = &iuse::oxygen_bottle;
     iuse_function_list["ATOMIC_BATTERY"] = &iuse::atomic_battery;
+    iuse_function_list["UPS_BATTERY"] = &iuse::ups_battery;
     iuse_function_list["FISHING_BASIC"]  = &iuse::fishing_rod_basic;
     iuse_function_list["GUN_REPAIR"] = &iuse::gun_repair;
     iuse_function_list["MISC_REPAIR"] = &iuse::misc_repair;
@@ -859,6 +861,13 @@ void Item_factory::load_veh_part(JsonObject& jo)
     load_basic_info(jo, veh_par_template);
 }
 
+void Item_factory::load_stationary(JsonObject& jo)
+{
+    it_stationary* stationary_template = new it_stationary();
+    stationary_template->category = jo.get_string("snippet_category");
+    load_basic_info(jo, stationary_template);
+}
+
 void Item_factory::load_generic(JsonObject& jo)
 {
     itype *new_item_template = new itype();
@@ -943,7 +952,6 @@ void Item_factory::load_basic_info(JsonObject& jo, itype* new_item_template)
     RAD_RESIST - Partially protects from ambient radiation.
     RAD_PROOF- Fully protects from ambient radiation.
     ELECTRIC_IMMUNE- Fully protects from electricity.
-
     Container-only flags:
     SEALS
     RIGID

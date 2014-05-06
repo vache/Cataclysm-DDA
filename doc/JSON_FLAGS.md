@@ -533,7 +533,9 @@ Some armor flags, such as `WATCH` and `ALARMCLOCK` are compatible with other ite
 
 - ```FIT``` Reduces encumbrance by one.
 - ```VARSIZE``` Can be made to fit via tailoring.
-- ```SKINTIGHT``` Reduces clothing layering penalty.
+- ```SKINTIGHT``` Undergarment layer.
+- ```OUTER```  Outer garment layer.
+- ```BELTED``` Layer for belts and backpacks.
 - ```WATER_FRIENDLY``` Prevents the covered body part(s) from getting drenched with water.
 - ```WATERPROOF``` Prevents the covered body-part(s) from getting wet in any circumstance.
 - ```RAINPROOF``` Prevents the covered body-part(s) from getting wet in the rain.
@@ -641,7 +643,7 @@ Some armor flags, such as `WATCH` and `ALARMCLOCK` are compatible with other ite
 
 ## Containers
 
-- ```RIGID``` Unused?
+- ```RIGID``` Volume of the item does not include volume of the content. Without that flag the volume of the contents are added to the volume of the container.
 - ```WATERTIGHT``` Can hold liquids.
 - ```SEALS``` Can be resealed.
 
@@ -678,6 +680,7 @@ Some armor flags, such as `WATCH` and `ALARMCLOCK` are compatible with other ite
 - ```FIRE_100``` Uses 100 shots per firing.
 - ```BACKBLAST``` Causes a small explosion behind the person firing the weapon. Currently not implemented?
 - ```STR_RELOAD``` Reload speed is affected by strength.
+- ```RELOAD_EJECT``` Ejects shell from gun on reload instead of when fired.
 
 ## Tools
 
@@ -688,7 +691,7 @@ Melee flags are fully compatible with tool flags, and vice versa.
 - ```CHARGEDIM``` If illuminated, light intensity fades with charge, starting at 20% charge left.
 - ```FIRE``` Counts as a fire for crafting purposes.
 - ```WRAP``` Unused?
-- ```RECHARGE``` Gain charges when placed in a cargo area with a recharge station. 
+- ```RECHARGE``` Gain charges when placed in a cargo area with a recharge station.
 
 ### Use actions
 

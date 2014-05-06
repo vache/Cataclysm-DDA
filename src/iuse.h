@@ -34,6 +34,7 @@ public:
     int pkill               (player*, item*, bool);
     int xanax               (player*, item*, bool);
     int cig                 (player*, item*, bool);
+    int ecig                (player*, item*, bool);
     int antibiotic          (player*, item*, bool);
     int eyedrops            (player*, item*, bool);
     int fungicide           (player*, item*, bool);
@@ -191,6 +192,7 @@ public:
     int seed                (player *, item *, bool);
     int oxygen_bottle       (player *, item *, bool);
     int atomic_battery      (player *, item *, bool);
+    int ups_battery         (player *, item *, bool);
     int fishing_rod_basic   (player *, item *, bool);
     int gun_repair          (player *, item *, bool);
     int misc_repair         (player *, item *, bool);

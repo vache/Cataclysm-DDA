@@ -1,4 +1,5 @@
 #include "messages.h"
+#include "input.h"
 #include <sstream>
 
 // Messages object.
@@ -24,6 +25,11 @@ std::vector< std::pair<std::string, std::string> > Messages::recent_messages(con
 
 void Messages::add_msg_string(const std::string &s)
 {
+    add_msg_string(s, m_neutral);
+}
+
+void Messages::add_msg_string(const std::string &s, game_message_type type)
+{
     if (s.length() == 0) {
         return;
     }
@@ -32,6 +38,7 @@ void Messages::add_msg_string(const std::string &s)
         s == player_messages.messages.back().message) {
         player_messages.messages.back().count++;
         player_messages.messages.back().turn = calendar::turn;
+        player_messages.messages.back().type = type;
         return;
     }
 
@@ -39,7 +46,7 @@ void Messages::add_msg_string(const std::string &s)
         player_messages.messages.erase(player_messages.messages.begin());
     }
 
-    player_messages.messages.push_back(game_message(calendar::turn, s));
+    player_messages.messages.push_back(game_message(calendar::turn, s, type));
 }
 
 void Messages::vadd_msg(const char *msg, va_list ap)
@@ -47,11 +54,24 @@ void Messages::vadd_msg(const char *msg, va_list ap)
     player_messages.add_msg_string(vstring_format(msg, ap));
 }
 
+void Messages::vadd_msg(game_message_type type, const char *msg, va_list ap)
+{
+    player_messages.add_msg_string(vstring_format(msg, ap), type);
+}
+
 void add_msg(const char *msg, ...)
 {
     va_list ap;
     va_start(ap, msg);
     Messages::vadd_msg(msg, ap);
+    va_end(ap);
+}
+
+void add_msg(game_message_type type, const char *msg, ...)
+{
+    va_list ap;
+    va_start(ap, msg);
+    Messages::vadd_msg(type, msg, ap);
     va_end(ap);
 }
 
@@ -70,48 +90,122 @@ bool Messages::has_undisplayed_messages()
     return size() && (player_messages.messages.back().turn > player_messages.curmes);
 }
 
-void Messages::display_messages(WINDOW *ipk_target, int left, int top, int right, int bottom,
-                                size_t offset, bool display_turns)
+std::string Messages::game_message::get_with_count() const
 {
-    //from  game
-    if( !size() ) {
+    if (count <= 1) {
+        return message;
+    }
+    //~ Message %s on the message log was repeated %d times, eg. "You hear a whack! x 12"
+    return string_format(_("%s x %d"), message.c_str(), count);
+}
+
+nc_color Messages::game_message::get_color() const
+{
+    if (int(turn) >= player_messages.curmes) {
+        // color for new messages
+        switch(type) {
+        case m_good:    return c_ltgreen;
+        case m_bad:     return c_ltred;
+        case m_mixed:   return c_pink;
+        case m_neutral: return c_white;
+        case m_warning: return c_yellow;
+        case m_info:    return c_ltblue;
+        default:        return c_white;
+        }
+    } else if (int(turn) + 5 >= player_messages.curmes) {
+        // color for slightly old messages
+        switch(type) {
+        case m_good:    return c_green;
+        case m_bad:     return c_red;
+        case m_mixed:   return c_magenta;
+        case m_neutral: return c_ltgray;
+        case m_warning: return c_brown;
+        case m_info:    return c_blue;
+        default:        return c_ltgray;
+        }
+    }
+    // color for old messages
+    return c_dkgray;
+}
+
+void Messages::display_messages()
+{
+    WINDOW *w = newwin(FULL_SCREEN_HEIGHT, FULL_SCREEN_WIDTH,
+                       (TERMY > FULL_SCREEN_HEIGHT) ? (TERMY - FULL_SCREEN_HEIGHT) / 2 : 0,
+                       (TERMX > FULL_SCREEN_WIDTH) ? (TERMX - FULL_SCREEN_WIDTH) / 2 : 0);
+
+    size_t offset = 0;
+    const int maxlength = FULL_SCREEN_WIDTH - 2 - 1;
+    const int bottom = FULL_SCREEN_HEIGHT - 2;
+    input_context ctxt("MESSAGE_LOG");
+    ctxt.register_action("UP", _("Scroll up"));
+    ctxt.register_action("DOWN", _("Scroll down"));
+    ctxt.register_action("QUIT");
+    ctxt.register_action("HELP_KEYBINDINGS");
+    while(true) {
+        werase(w);
+        draw_border(w);
+        mvwprintz(w, FULL_SCREEN_HEIGHT - 1, 32, c_red, _("Press %s to return"),
+                  ctxt.get_desc("QUIT").c_str());
+
+        draw_scrollbar(w, offset, FULL_SCREEN_HEIGHT - 2, size(), 1);
+
+        int line = 1;
+        int lasttime = -1;
+        for (size_t i = offset; i < size() && line <= bottom; i++) {
+            const game_message &m = player_messages.messages[size() - i - 1];
+            const std::string mstr = m.get_with_count();
+            const nc_color col = m.get_color();
+            calendar timepassed = calendar::turn - m.turn;
+            if (int(timepassed) > lasttime) {
+                mvwprintz(w, line, 3, c_ltblue, _("%s ago:"),
+                        timepassed.textify_period().c_str());
+                line++;
+                lasttime = int(timepassed);
+            }
+            std::vector<std::string> folded = foldstring(mstr, maxlength);
+            for (size_t j = 0; j < folded.size() && line <= bottom; j++, line++) {
+                mvwprintz(w, line, 1, col, "%s", folded[j].c_str());
+            }
+        }
+
+        if (offset + 1 < size()) {
+            mvwprintz(w, FULL_SCREEN_HEIGHT - 1, 5, c_magenta, "vvv");
+        }
+        if (offset > 0) {
+            mvwprintz(w, FULL_SCREEN_HEIGHT - 1, FULL_SCREEN_WIDTH - 6, c_magenta, "^^^");
+        }
+        wrefresh(w);
+
+        const std::string action = ctxt.handle_input();
+        if (action == "DOWN" && offset + 1 < size()) {
+            offset++;
+        } else if (action == "UP" && offset > 0) {
+            offset--;
+        } else if (action == "QUIT") {
+            break;
+        }
+    }
+    player_messages.curmes = int(calendar::turn);
+    werase(w);
+    delwin(w);
+}
+
+void Messages::display_messages(WINDOW *ipk_target, int left, int top, int right, int bottom)
+{
+    if (!size()) {
         return;
     }
+    const int maxlength = right - left;
     int line = bottom;
-    int maxlength = right - left;
-    offset = std::min( offset, size() );
-
-    int lasttime = -1;
-    for (int i = size() - offset - 1; i >= 0 && line >= top; i--) {
-        game_message &m = player_messages.messages[i];
-        std::string mstr = m.message;
-        if (m.count > 1) {
-            std::stringstream mesSS;
-            //~ Message %s on the message log was repeated %d times, eg. “You hear a whack! x 12”
-            mesSS << string_format(_("%s x %d"), mstr.c_str(), m.count);
-            mstr = mesSS.str();
-        }
-        // Split the message into many if we must!
-        nc_color col = c_dkgray;
-        if (int(m.turn) >= player_messages.curmes) {
-            col = c_ltred;
-        } else if (int(m.turn) + 5 >= player_messages.curmes) {
-            col = c_ltgray;
-        }
+    for (int i = size() - 1; i >= 0 && line >= top; i--) {
+        const game_message &m = player_messages.messages[i];
+        const std::string mstr = m.get_with_count();
+        const nc_color col = m.get_color();
         std::vector<std::string> folded = foldstring(mstr, maxlength);
         for (int j = folded.size() - 1; j >= 0 && line >= top; j--, line--) {
             mvwprintz(ipk_target, line, left, col, "%s", folded[j].c_str());
         }
-        if (display_turns) {
-            calendar timepassed = calendar::turn - m.turn;
-
-            if (int(timepassed) > lasttime) {
-                mvwprintz(ipk_target, line, 3, c_ltblue, _("%s ago:"),
-                          timepassed.textify_period().c_str());
-                line--;
-                lasttime = int(timepassed);
-            }
-        }
     }
     player_messages.curmes = int(calendar::turn);
-};
+}
