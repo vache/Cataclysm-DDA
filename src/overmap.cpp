@@ -1038,6 +1038,7 @@ void overmap::generate(const overmap *north, const overmap *east,
     std::vector<city> road_points; // cities and roads_out together
     std::vector<point> river_start;// West/North endpoints of rivers
     std::vector<point> river_end; // East/South endpoints of rivers
+    std::vector<city> rail_points;
 
     // Determine points where rivers & roads should connect w/ adjacent maps
     const oter_id river_center("river_center"); // optimized comparison.
@@ -1246,7 +1247,14 @@ void overmap::generate(const overmap *north, const overmap *east,
     }
     for (int i = 0; i < cities.size(); i++) {
         road_points.push_back(cities[i]);
+        city temp = cities[i];
+        city railpoint;
+        railpoint.x = temp.x + rng(-1 * temp.s, temp.s);
+        railpoint.y = temp.y + rng(-1 * temp.s, temp.s);
+        rail_points.push_back(railpoint);
     }
+
+    place_hiways(rail_points, 0, "rail");
     // And finally connect them via "highways"
     place_hiways(road_points, 0, "road");
     place_specials();
@@ -2758,9 +2766,18 @@ void overmap::make_hiway(int x1, int y1, int x2, int y2, int z, const std::strin
                 if (road_allowed(ter(x, y, z))) {
                     if (is_river(ter(x, y, z))) {
                         if (d == 1 || d == 3) {
-                            ter(x, y, z) = "bridge_ns";
+                            if(base == "road") {
+                                ter(x, y, z) = "bridge_ns";
+                            } else if(base == "rail") {
+                                ter(x, y, z) = "bridge_rail_grates_ns";
+                            }
                         } else {
-                            ter(x, y, z) = "bridge_ew";
+                            if(base == "road")
+                            {
+                                ter(x, y, z) = "bridge_ew";
+                            } else if(base == "rail"){
+                                ter(x, y, z) = "bridge_rail_grates_ew";
+                            }
                         }
                     } else {
                         ter(x, y, z) = base + "_nesw";
@@ -2929,6 +2946,8 @@ void overmap::polish(const int z, const std::string &terrain_type)
                     good_road("road", x, y, z);
                 } else if (check_ot_type("road", x, y, z)) {
                     good_road("road", x, y, z);
+                } else if (check_ot_type("rail", x, y, z)) {
+                    good_rail(x, y, z);
                 }
             }
         }
@@ -2976,6 +2995,12 @@ bool overmap::check_ot_type_road(const std::string &otype, int x, int y, int z)
     const oter_id oter = ter(x, y, z);
     if(otype == "road" || otype == "bridge" || otype == "hiway") {
         if(is_ot_type("road", oter) || is_ot_type ("bridge", oter) || is_ot_type("hiway", oter)) {
+            return true;
+        } else {
+            return false;
+        }
+    } else if(otype == "rail", "bridge_rail") {
+        if(is_ot_type("rail", oter) || is_ot_type ("bridge_rail", oter)) {
             return true;
         } else {
             return false;
@@ -3090,6 +3115,55 @@ void overmap::good_road(const std::string &base, int x, int y, int z)
     }
     if (ter(x, y, z) == "road_nesw" && one_in(4)) {
         ter(x, y, z) = "road_nesw_manhole";
+    }
+}
+
+void overmap::good_rail(int x, int y, int z)
+{
+    std::string base = "rail";
+
+   if (check_ot_type_road(base, x, y - 1, z)) { // connection to north
+        if (check_ot_type_road(base, x + 1, y, z)) { // north and east
+            ter(x, y, z) = base + "_ne";
+        } else if (check_ot_type_road(base, x - 1, y, z)) { // north and west
+            ter(x, y, z) = base + "_wn";
+        } else if (check_ot_type_road(base, x, y + 1, z)) { // north and south
+            ter(x, y, z) = base + "_ns";
+        } else {
+            if((y != OMAPY - 1)) {
+                ter(x, y, z) = base + "_end_south";
+            } else {
+                ter(x, y, z) = base + "_ns";
+            }
+        }
+    } else if (check_ot_type_road(base, x + 1, y, z)) { // connection to east
+        if (check_ot_type_road(base, x, y + 1, z)) { // east and south
+            ter(x, y, z) = base + "_es";
+        } else if (check_ot_type_road(base, x - 1, y, z)) { // east and west
+            ter(x, y, z) = base + "_ew";
+        } else {
+            if(x != 0) {
+                ter(x, y, z) = base + "_end_west";
+            } else {
+                ter(x, y, z) = base + "_ew";
+            }
+        }
+    } else if (check_ot_type_road(base, x, y + 1, z)) { // connection to south
+        if (check_ot_type_road(base, x - 1, y, z)) { // south and west
+            ter(x, y, z) = base + "_sw";
+        } else {
+            if(y != 0) {
+                ter(x, y, z) = base + "_end_north";
+            } else {
+                ter(x, y, z) = base + "_ns";
+            }
+        }
+    } else if (check_ot_type_road(base, x - 1, y, z)) { // connection to west
+        if(base == "road" && (x != OMAPX-1)) {
+            ter(x, y, z) = base + "_end_east";
+        } else {
+            ter(x, y, z) = base + "_ew";
+        }
     }
 }
 

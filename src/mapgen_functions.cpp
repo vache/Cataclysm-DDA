@@ -1275,7 +1275,7 @@ void mapgen_rail_straight(map *m, oter_id terrain_type, mapgendata dat, int turn
 
     if(terrain_type == "rail_ew") {
         m->rotate(1);
-    }    
+    }
 }
 
 /* Railroad crossing */
@@ -1317,7 +1317,7 @@ void mapgen_rail_and_road(map *m, oter_id terrain_type, mapgendata dat, int turn
           }
        }
     }
-	
+
 
     mapf::formatted_set_simple(m, 0, 0,
 "\
@@ -1345,7 +1345,7 @@ yyyyyxyyyxyyyyxyyyxyyyyy\n\
 ...^-x---x-^^-x---x-^...\n\
 ...^^x^^^x^^^^x^^^x^^...\n\
 ...^-x---x-^^-x---x-^...\n",
-    /* 
+    /*
     ".", "^" and "-" become a sidewalk tile near cities
     otherwise, "." is the ground, "^" is rubble and
     "-" is a railroad tie.
@@ -1355,7 +1355,7 @@ yyyyyxyyyxyyyyxyyyxyyyyy\n\
 
     if(terrain_type == "road_and_rail") {
         m->rotate(1);
-    }    
+    }
 }
 
 /* Railroad takes a 90 degree curve */
@@ -1445,7 +1445,7 @@ xxxxd^^x^^^^^^x^^^x^^...\n\
 ..^^-x---x-^^-x---x-^...\n\
 ...^^x^^^x^^^^x^^^x^^...\n\
 ...^-x---x-^^-x---x-^...\n";
-    } else if(terrain_type == "rail_wn") {
+    } else { // if(terrain_type == "rail_wn") {
        tie_d = t_railroad_tie_d2;
        terrain = "\
 ...^^x^^^x^^^^x^^^x^^...\n\
@@ -1480,11 +1480,11 @@ xxxxxxxxxxxxxx^^^^^.....\n\
             m->ter_set(i,j, dat.groundcover());
         }
     }
-    mapf::formatted_set_simple(m, 0, 0, terrain, 
+    mapf::formatted_set_simple(m, 0, 0, terrain,
         mapf::basic_bind(". ^ x d - |", t_null, t_rubble, t_railroad_track, tie_d, t_railroad_tie_h, t_railroad_tie_v),
         mapf::basic_bind(". ^ x d - |", f_null, f_null, f_null, f_null, f_null, f_null)
     );
-   
+
 }
 
 /* End piece of a railroad with buffer stop */
@@ -1862,9 +1862,10 @@ void mapgen_bridge_rail(map *m, oter_id terrain_type, mapgendata dat, int turn, 
     ter_id support_material;
     if (terrain_type == "bridge_rail_concrete_ew" || terrain_type == "bridge_rail_concrete_ns") {
        support_material = t_concrete;
-    }
-    if (terrain_type == "bridge_rail_grates_ew" || terrain_type == "bridge_rail_grates_ns") {
+    } else if (terrain_type == "bridge_rail_grates_ew" || terrain_type == "bridge_rail_grates_ns") {
        support_material = t_grate;
+    } else {
+        support_material = t_concrete;
     }
 
     /* make bridge */

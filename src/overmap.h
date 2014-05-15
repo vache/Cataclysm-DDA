@@ -420,6 +420,7 @@ class overmap
   bool is_road(int x, int y, int z);
   void polish(const int z, const std::string &terrain_type="all");
   void good_road(const std::string &base, int x, int y, int z);
+  void good_rail(int x, int y, int z);
   void good_river(int x, int y, int z);
   oter_id rotate(const oter_id &oter, int dir);
   bool allowed_terrain(tripoint p, int width, int height, std::list<std::string> allowed);
