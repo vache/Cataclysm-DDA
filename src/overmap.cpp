@@ -215,7 +215,7 @@ map_extras &get_extras(const std::string &name)
 // oter_t specific affirmatives to is_road, set at startup (todo; jsonize)
 bool isroad(std::string bstr)
 {
-    if (bstr == "road" || bstr == "bridge" ||
+    if (bstr == "road" || bstr == "bridge" || bstr == "rail_and_road" ||
         bstr == "subway" || bstr == "sewer" ||
         bstr == "sewage_treatment_hub" ||
         bstr == "sewage_treatment_under" ||
@@ -312,7 +312,8 @@ void load_overmap_terrain(JsonObject &jo)
 
     oter.is_road = isroad(id_base);
     oter.is_river = (id_base.compare(0, 5, "river", 5) == 0 ||
-                     id_base.compare(0, 6, "bridge", 6) == 0);
+                     id_base.compare(0, 6, "bridge", 6) == 0 ||
+                     id_base.compare(0, 11, "rail_bridge", 11) == 0);
 
     oter.id_mapgen = id_base; // What, another identifier? Whyyy...
     if ( ! oter.line_drawing ) { // ...oh
@@ -1194,10 +1195,37 @@ void overmap::generate(const overmap *north, const overmap *east,
         }
     }
 
+
+    city railpoint;
+    railpoint.x = 0;
+    railpoint.y = rng(5, 175);
+    rail_points.push_back(railpoint);
+
+    railpoint.x = OMAPX-1;
+    railpoint.y = rng(5, 175);
+    rail_points.push_back(railpoint);
+
+    railpoint.x = rng(5, 175);
+    railpoint.y = 0;
+    rail_points.push_back(railpoint);
+
+    railpoint.x = rng(5, 175);
+    railpoint.y = OMAPY-1;
+    rail_points.push_back(railpoint);
+    for (int i = 30; i < 150; i+=30) {
+        railpoint.x = i + rng(-10, 10);
+        railpoint.y = i + rng(-10, 10);
+        rail_points.push_back(railpoint);
+    }
+
+    place_hiways(rail_points, 0, "rail");
+
     // Cities and forests come next.
     // These're agnostic of adjacent maps, so it's very simple.
     place_cities();
     place_forest();
+
+
 
     // Ideally we should have at least two exit points for roads, on different sides
     if (roads_out.size() < 2) {
@@ -1247,14 +1275,8 @@ void overmap::generate(const overmap *north, const overmap *east,
     }
     for (int i = 0; i < cities.size(); i++) {
         road_points.push_back(cities[i]);
-        city temp = cities[i];
-        city railpoint;
-        railpoint.x = temp.x + rng(-1 * temp.s, temp.s);
-        railpoint.y = temp.y + rng(-1 * temp.s, temp.s);
-        rail_points.push_back(railpoint);
     }
 
-    place_hiways(rail_points, 0, "rail");
     // And finally connect them via "highways"
     place_hiways(road_points, 0, "road");
     place_specials();
@@ -2769,14 +2791,13 @@ void overmap::make_hiway(int x1, int y1, int x2, int y2, int z, const std::strin
                             if(base == "road") {
                                 ter(x, y, z) = "bridge_ns";
                             } else if(base == "rail") {
-                                ter(x, y, z) = "bridge_rail_grates_ns";
+                                ter(x, y, z) = "rail_bridge_grates_ns";
                             }
                         } else {
-                            if(base == "road")
-                            {
+                            if(base == "road") {
                                 ter(x, y, z) = "bridge_ew";
                             } else if(base == "rail"){
-                                ter(x, y, z) = "bridge_rail_grates_ew";
+                                ter(x, y, z) = "rail_bridge_grates_ew";
                             }
                         }
                     } else {
@@ -2994,13 +3015,14 @@ bool overmap::check_ot_type_road(const std::string &otype, int x, int y, int z)
 {
     const oter_id oter = ter(x, y, z);
     if(otype == "road" || otype == "bridge" || otype == "hiway") {
-        if(is_ot_type("road", oter) || is_ot_type ("bridge", oter) || is_ot_type("hiway", oter)) {
+        if(is_ot_type("road", oter) || is_ot_type ("bridge", oter) || is_ot_type("hiway", oter ||
+         is_ot_type("rail_and_road", oter))) {
             return true;
         } else {
             return false;
         }
-    } else if(otype == "rail", "bridge_rail") {
-        if(is_ot_type("rail", oter) || is_ot_type ("bridge_rail", oter)) {
+    } else if(otype == "rail") {
+        if(is_ot_type("rail", oter) || is_ot_type ("rail_bridge", oter)) {
             return true;
         } else {
             return false;
@@ -3034,6 +3056,13 @@ bool overmap::is_road_or_highway(int x, int y, int z)
 
 void overmap::good_road(const std::string &base, int x, int y, int z)
 {
+    if (((check_ot_type_road("rail", x, y-1, z) && check_ot_type_road("rail", x, y+1, z)) ||
+         (check_ot_type_road("rail", x-1, y, z) && check_ot_type_road("rail", x+1, y, z))) &&
+        base == "road" ) {
+        ter(x,y,z) = "rail_and_road";
+        return;
+    }
+
     if (check_ot_type_road(base, x, y - 1, z)) {
         if (check_ot_type_road(base, x + 1, y, z)) {
             if (check_ot_type_road(base, x, y + 1, z)) {
@@ -3121,8 +3150,18 @@ void overmap::good_road(const std::string &base, int x, int y, int z)
 void overmap::good_rail(int x, int y, int z)
 {
     std::string base = "rail";
+    if(check_ot_type("rail_bridge", x, y, z)) {
+        return;
+    }
 
-   if (check_ot_type_road(base, x, y - 1, z)) { // connection to north
+    if ((check_ot_type_road("road", x, y-1, z) && check_ot_type_road("road", x, y+1, z)) ||
+        (check_ot_type_road("road", x-1, y, z) && check_ot_type_road("road", x+1, y, z))) {
+
+        ter(x,y,z) = "rail_and_road";
+        return;
+    }
+
+    if (check_ot_type_road(base, x, y - 1, z)) { // connection to north
         if (check_ot_type_road(base, x + 1, y, z)) { // north and east
             ter(x, y, z) = base + "_ne";
         } else if (check_ot_type_road(base, x - 1, y, z)) { // north and west

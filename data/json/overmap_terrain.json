@@ -1663,6 +1663,7 @@
         "line_drawing" : true,
         "color" : "light_gray",
         "see_cost" : 2,
+		"allow_road" : true,
         "mapgen_straight": [
             { "method": "builtin", "name": "rail_straight" }
         ],
@@ -1679,52 +1680,45 @@
         "see_cost" : 2
     },{
         "type" : "overmap_terrain",
-        "id" : "road_and_rail",
-        "name" : "railroad crossing",
-        "sym" : 4194414,
-        "color" : "white",
-        "see_cost" : 2
-    },{
-        "type" : "overmap_terrain",
-        "id" : "bridge_rail_concrete_ns",
+        "id" : "rail_bridge_concrete_ns",
         "name" : "railroad bridge",
         "sym" : 124,
         "color" : "light_gray",
         "see_cost" : 2,
         "mapgen" : [
-            { "method": "builtin", "name": "bridge_rail" }
+            { "method": "builtin", "name": "rail_bridge" }
         ]
 
     },{
         "type" : "overmap_terrain",
-        "id" : "bridge_rail_concrete_ew",
+        "id" : "rail_bridge_concrete_ew",
         "name" : "railroad bridge",
         "sym" : 45,
         "color" : "light_gray",
         "see_cost" : 2,
         "mapgen" : [
-            { "method": "builtin", "name": "bridge_rail" }
+            { "method": "builtin", "name": "rail_bridge" }
         ]
     },{
         "type" : "overmap_terrain",
-        "id" : "bridge_rail_grates_ns",
+        "id" : "rail_bridge_grates_ns",
         "name" : "railroad bridge",
         "sym" : 124,
         "color" : "light_gray",
         "see_cost" : 2,
         "mapgen" : [
-            { "method": "builtin", "name": "bridge_rail" }
+            { "method": "builtin", "name": "rail_bridge" }
         ]
 
     },{
         "type" : "overmap_terrain",
-        "id" : "bridge_rail_grates_ew",
+        "id" : "rail_bridge_grates_ew",
         "name" : "railroad bridge",
         "sym" : 45,
         "color" : "light_gray",
         "see_cost" : 2,
         "mapgen" : [
-            { "method": "builtin", "name": "bridge_rail" }
+            { "method": "builtin", "name": "rail_bridge" }
         ]
     },{
         "type" : "overmap_terrain",

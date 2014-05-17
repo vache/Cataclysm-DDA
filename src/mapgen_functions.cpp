@@ -60,10 +60,9 @@ void init_mapgen_builtin_functions() {
     mapgen_cfunction_map["rail_curved"]      = &mapgen_rail_curved;
     mapgen_cfunction_map["rail_end"]         = &mapgen_rail_end;
     mapgen_cfunction_map["rail_and_road"]    = &mapgen_rail_and_road;
-    mapgen_cfunction_map["road_and_rail"]    = &mapgen_rail_and_road;
     mapgen_cfunction_map["field"]            = &mapgen_field;
     mapgen_cfunction_map["bridge"]           = &mapgen_bridge;
-    mapgen_cfunction_map["bridge_rail"]      = &mapgen_bridge_rail;
+    mapgen_cfunction_map["rail_bridge"]      = &mapgen_rail_bridge;
     mapgen_cfunction_map["highway"]          = &mapgen_highway;
     mapgen_cfunction_map["river_center"] = &mapgen_river_center;
     mapgen_cfunction_map["river_curved_not"] = &mapgen_river_curved_not;
@@ -1287,9 +1286,6 @@ void mapgen_rail_and_road(map *m, oter_id terrain_type, mapgendata dat, int turn
             sidewalks = true;
         }
     }
-
-
-
     // draw ground
     for (int i=0; i< SEEX * 2; i++) {
         for (int j=0; j< SEEY*2; j++) {
@@ -1353,7 +1349,7 @@ yyyyyxyyyxyyyyxyyyxyyyyy\n\
     mapf::basic_bind(". , y ^ x - 1", sidewalks ? t_sidewalk : t_null, t_pavement, t_pavement_y, sidewalks ? t_sidewalk : t_rubble, t_railroad_track, sidewalks ? t_sidewalk : ((terrain_type == "rail_and_road") ? t_railroad_tie_h : t_railroad_tie_v), tsignal),
     mapf::basic_bind(". , y ^ x - 1", f_null, f_null, f_null, f_null, f_null, f_null, f_null, f_null));
 
-    if(terrain_type == "road_and_rail") {
+    if((dat.east().t().id_base == "rail" ) && (dat.west().t().id_base == "rail")){
         m->rotate(1);
     }
 }
@@ -1855,14 +1851,14 @@ void mapgen_bridge(map *m, oter_id terrain_type, mapgendata dat, int turn, float
 }
 
 /* A straight piece of a railroad bridge. */
-void mapgen_bridge_rail(map *m, oter_id terrain_type, mapgendata dat, int turn, float)
+void mapgen_rail_bridge(map *m, oter_id terrain_type, mapgendata dat, int turn, float)
 {
 
     /* railroad bridges have either concrete or grates as underground */
     ter_id support_material;
-    if (terrain_type == "bridge_rail_concrete_ew" || terrain_type == "bridge_rail_concrete_ns") {
+    if (terrain_type == "rail_bridge_concrete_ew" || terrain_type == "rail_bridge_concrete_ns") {
        support_material = t_concrete;
-    } else if (terrain_type == "bridge_rail_grates_ew" || terrain_type == "bridge_rail_grates_ns") {
+    } else if (terrain_type == "rail_bridge_grates_ew" || terrain_type == "rail_bridge_grates_ns") {
        support_material = t_grate;
     } else {
         support_material = t_concrete;
@@ -1896,10 +1892,10 @@ void mapgen_bridge_rail(map *m, oter_id terrain_type, mapgendata dat, int turn, 
 ~~~##x###x####x###x##~~~\n\
 ~~~#-x---x-##-x---x-#~~~\n",
 /* all "#" are either concrete or grate */
-    mapf::basic_bind("~ # x -", t_water_dp, support_material, t_railroad_track, (terrain_type == "bridge_rail_concrete_ns" || terrain_type == "bridge_rail_grates_ns") ? t_railroad_tie_h : t_railroad_tie_v),
+    mapf::basic_bind("~ # x -", t_water_dp, support_material, t_railroad_track, (terrain_type == "rail_bridge_concrete_ns" || terrain_type == "rail_bridge_grates_ns") ? t_railroad_tie_h : t_railroad_tie_v),
     mapf::basic_bind("~ # x -", f_null, f_null, f_null, f_null));
 
-    if (terrain_type == "bridge_rail_concrete_ew" || terrain_type == "bridge_rail_grates_ew") {
+    if (terrain_type == "rail_bridge_concrete_ew" || terrain_type == "rail_bridge_grates_ew") {
         m->rotate(1);
     }
 }
