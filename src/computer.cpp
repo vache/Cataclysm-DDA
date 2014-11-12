@@ -7,12 +7,955 @@
 #include "monstergenerator.h"
 #include "overmapbuffer.h"
 #include "messages.h"
+#include "helper.h"
 #include <fstream>
 #include <string>
 #include <sstream>
 
 std::vector<std::string> computer::lab_notes;
 int alerts = 0;
+
+compsec_pass::compsec_pass(std::stringstream& stream)
+{
+    stream >> pass;
+}
+
+bool compsec_pass::attempt()
+{
+    std::string input = string_input_popup(_("Enter Password"), 256);
+    return (input == pass);
+}
+
+std::string compsec_pass::save()
+{
+    std::stringstream data;
+    data << "pass " << helper::space_to_underscore(pass) << " ";
+    return data.str();
+}
+
+compsec_hack::compsec_hack(std::stringstream &stream)
+{
+    stream >> diff;
+}
+
+bool compsec_hack::attempt()
+{
+    g->u.practice("computer", 5 + diff * 2, diff + 2);
+
+    int player_roll = g->u.skillLevel("computer");
+    if (g->u.int_cur < 8 && one_in(2))
+    {
+        player_roll -= rng(0, 8 - g->u.int_cur);
+    }
+    else if (g->u.int_cur > 8 && one_in(3))
+    {
+        player_roll += rng(0, g->u.int_cur - 8);
+    }
+
+    return (dice(player_roll, 6) >= dice(diff, 6));
+}
+
+std::string compsec_hack::save()
+{
+    std::stringstream data;
+    data << "hack " << diff << " ";
+    return data.str();
+}
+
+compsec_item::compsec_item(std::stringstream &stream)
+{
+    stream >> it >> num;
+}
+
+bool compsec_item::attempt()
+{
+    if(g->u.has_amount(it, num))
+    {
+        g->u.use_amount(it, num);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+std::string compsec_item::save()
+{
+    std::stringstream data;
+    data << "item " << it << " " << num << " ";
+    return data.str();
+}
+
+compsec_itemat::compsec_itemat(std::stringstream &stream)
+{
+    stream >> it >> itemx >> itemy;
+}
+
+bool compsec_itemat::attempt()
+{
+    //std::vector<item> items = g->m.i_at(c->compx + itemx, c->compy + itemy);
+    std::vector<item> items = g->m.i_at(itemx, itemy);
+
+    for(int i = 0; i < items.size(); i++)
+    {
+        if(items[i].type->id == it)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string compsec_itemat::save()
+{
+    std::stringstream data;
+    data << "itemat " << it << " " << itemx << " " << itemy << " ";
+    return data.str();
+}
+
+compsec_containerat::compsec_containerat(std::stringstream &stream)
+{
+    stream >> itemx >> itemy >> wt >> soft >> empty;
+    if(!empty)
+    {
+        stream >> it;
+    }
+}
+
+bool compsec_containerat::attempt()
+{
+    // problem if: not container, req. watertight & item given not,
+    // req. empty, & item given not, req. non empty & item given empty
+    // req. contents & item wrong contents
+
+    // if watertight, ignore software, vice versa
+    int x = itemx;// + c->compx;
+    int y = itemy;// + c->compy;
+    if(g->m.i_at(x, y).size() == 0)
+    {
+        return false;
+    }
+    item itemat = g->m.i_at(x, y)[0];
+    if(soft)
+    {
+        if(itemat.typeId() != "usb_drive")
+        {
+            return false;
+        }
+    }
+    if(wt)
+    {
+        if(!itemat.is_watertight_container())
+        {
+            return false;
+        }
+    }
+    if(empty)
+    {
+        return (itemat.contents.size() == 0);
+    }
+    else
+    {
+        if(itemat.contents[0].typeId() != it)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+}
+
+std::string compsec_containerat::save()
+{
+    std::stringstream data;
+    data << "cnat " << itemx << " " << itemy << " " << wt << " " <<
+            soft << " " << empty << " ";
+    if(!empty)
+    {
+        data << it << " ";
+    }
+    return data.str();
+}
+
+compact_chter::compact_chter(std::stringstream &stream)
+{
+    stream >> terx >> tery >> ter;
+}
+
+void compact_chter::go()
+{
+    //g->m.ter_set(c->compx + terx, c->compy + tery, ter);
+    g->m.ter_set(terx, tery, ter);
+}
+
+std::string compact_chter::save()
+{
+    std::stringstream data;
+    data << "cht " << terx << " " << tery << " " << ter << " ";
+    return data.str();
+}
+
+compact_msg::compact_msg(std::stringstream &stream)
+{
+    stream >> msg;
+    msg = helper::swap_char(helper::underscore_to_space(msg), '|', '\n');
+}
+
+void compact_msg::go()
+{
+    c->reset_terminal();
+    c->print_text(msg.c_str());
+}
+
+std::string compact_msg::save()
+{
+    std::stringstream data;
+    data << "msg " << helper::swap_char(helper::space_to_underscore(msg), '\n', '|') << " ";
+    return data.str();
+}
+
+compact_chlvl::compact_chlvl(std::stringstream &stream)
+{
+    stream >> z;
+}
+
+void compact_chlvl::go()
+{
+    g->vertical_move(z, false);
+}
+
+std::string compact_chlvl::save()
+{
+    std::stringstream data;
+    data << "chz " << z << " ";
+    return data.str();
+}
+
+compact_noise::compact_noise(std::stringstream &stream)
+{
+    stream >> vol >> desc;
+    desc = helper::underscore_to_space(desc);
+}
+
+void compact_noise::go()
+{
+    g->sound(g->u.posx, g->u.posy, vol, desc);
+}
+
+std::string compact_noise::save()
+{
+    std::stringstream data;
+    data << "snd " << vol << " " << helper::space_to_underscore(desc) << " ";
+    return data.str();
+}
+
+compact_mon::compact_mon(std::stringstream &stream)
+{
+    stream >> monx >> mony >> mon;
+}
+
+void compact_mon::go()
+{
+    monster newmon(GetMType(mon));
+    //newmon.spawn(c->compx + monx, c->compy + mony);
+    newmon.spawn(monx, mony);
+    g->add_zombie(newmon);
+}
+
+std::string compact_mon::save()
+{
+    std::stringstream data;
+    data << "mon " << monx << " " << mony << " " << mon << " ";
+    return data.str();
+}
+
+compact_item::compact_item(std::stringstream &stream)
+{
+    stream >> itemx >> itemy >> it;
+}
+
+void compact_item::go()
+{
+    //g->m.spawn_item(c->compx + itemx, c->compy + itemy, it, 0, 1);
+    g->m.spawn_item(itemx, itemy, it, 0, 1);
+}
+
+std::string compact_item::save()
+{
+    std::stringstream data;
+    data << "itm " << itemx << " " << itemy << " " << it << " ";
+    return data.str();
+}
+
+compact_fill::compact_fill(std::stringstream &stream)
+{
+    stream >> itemx >> itemy >> it >> amt;
+}
+
+void compact_fill::go()
+{
+    //item *container = &(g->m.i_at(c->compx + itemx, c->compy + itemy)[0]);
+    item *container = &(g->m.i_at(itemx, itemy)[0]);
+    item contents(it, calendar::turn);
+
+    if(contents.is_software())
+    {
+        container->put_in(contents);
+    }
+    else if(container->is_container())
+    {
+        container->put_in(contents);
+    }
+}
+
+std::string compact_fill::save()
+{
+    std::stringstream data;
+    data << "fil " << itemx << " " << itemy << " " << it << " " << amt << " ";
+    return data.str();
+}
+
+compact_map::compact_map(std::stringstream &stream)
+{
+    int numtypes;
+    stream >> rad >> z >> numtypes;
+    for(int i = 0; i < numtypes; i++)
+    {
+        std::string val;
+        stream >> val;
+        types.push_back(val);
+    }
+}
+
+void compact_map::go()
+{
+    int minx = int((g->levx + int(MAPSIZE / 2)) / 2) - rad;
+    int maxx = int((g->levx + int(MAPSIZE / 2)) / 2) + rad;
+    int miny = int((g->levy + int(MAPSIZE / 2)) / 2) - rad;
+    int maxy = int((g->levy + int(MAPSIZE / 2)) / 2) + rad;
+    if (minx < 0)
+    {
+        minx = 0;
+    }
+    if (maxx >= OMAPX)
+    {
+        maxx = OMAPX - 1;
+    }
+    if (miny < 0)
+    {
+        miny = 0;
+    }
+    if (maxy >= OMAPY)
+    {
+        maxy = OMAPY - 1;
+    }
+
+    if(types.size() == 0)
+    {
+        for (int i = minx; i <= maxx; i++)
+        {
+            for (int j = miny; j <= maxy; j++)
+            {
+                g->cur_om->seen(i, j, z) = true;
+            }
+        }
+    }
+    else
+    {
+        for (int i = minx; i <= maxx; i++)
+        {
+            for (int j = miny; j <= maxy; j++)
+            {
+                for(int k = 0; k < types.size(); k++)
+                {
+                    const tripoint center = g->om_global_location();
+                    const oter_id &oter = overmap_buffer.ter(center.x + i, center.y + j, center.z);
+                    if (is_ot_type(types.at(k), oter)) {
+                        overmap_buffer.set_seen(center.x + i, center.y + j, center.z, true);
+                    }
+                }
+            }
+        }
+    }
+}
+
+std::string compact_map::save()
+{
+    std::stringstream data;
+    data << "map " << rad << " " << z << " " << types.size() << " ";
+    for(int i = 0; i < types.size(); i++)
+    {
+        data << types[i] << " ";
+    }
+    return data.str();
+}
+
+compact_trap::compact_trap(std::stringstream &stream)
+{
+    stream >> trapx >> trapy >> t;
+}
+
+void compact_trap::go()
+{
+    //g->m.add_trap(trapx+c->compx, trapy+c->compy, (trap_id)t);
+    g->m.add_trap(trapx, trapy, (trap_id)t);
+}
+
+std::string compact_trap::save()
+{
+    std::stringstream data;
+    data << "trp " << trapx << " " << trapy << " " << t << " ";
+    return data.str();
+}
+
+compact_remtrap::compact_remtrap(std::stringstream &stream)
+{
+    stream >> trapx >> trapy;
+}
+
+void compact_remtrap::go()
+{
+    //g->m.remove_trap(trapx + c->compx, trapy + c->compy);
+    g->m.remove_trap(trapx, trapy);
+}
+
+std::string compact_remtrap::save()
+{
+    std::stringstream data;
+    data << "rmt " << trapx << " " << trapy << " ";
+    return data.str();
+}
+
+compact_field::compact_field(std::stringstream &stream)
+{
+    stream >> fieldx >> fieldy >> f >> den;
+}
+
+void compact_field::go()
+{
+    g->m.add_field(fieldx, fieldy, (field_id)f, den);
+}
+
+std::string compact_field::save()
+{
+    std::stringstream data;
+    data << "fld " << fieldx << " " << fieldy << " " << f << " " << den << " ";
+    return data.str();
+}
+
+compact_remfield::compact_remfield(std::stringstream &stream)
+{
+    stream >> fieldx >> fieldy >> f;
+}
+
+void compact_remfield::go()
+{
+    //g->m.remove_field(fieldx + c->compx, fieldy + c->compy, (field_id)f);
+    g->m.remove_field(fieldx, fieldy, (field_id)f);
+}
+
+std::string compact_remfield::save()
+{
+    std::stringstream data;
+    data << "rmf " << fieldx << " " << fieldy << " " << f << " ";
+    return data.str();
+}
+
+compact_exp::compact_exp(std::stringstream &stream)
+{
+    stream >> expx >> expy >> pwr >> shrap >> fire;
+}
+
+void compact_exp::go()
+{
+    //g->explosion(expx+c->compx, expy+c->compx, pwr, shrap, fire);
+    g->explosion(expx, expy, pwr, shrap, fire);
+}
+
+std::string compact_exp::save()
+{
+    std::stringstream data;
+    data << "exp " << expx << " " << expy << " " << pwr << " " << shrap << " " << fire << " ";
+    return data.str();
+}
+
+compact_hurt::compact_hurt(std::stringstream &stream)
+{
+    stream >> min >> max;
+}
+
+void compact_hurt::go()
+{
+    g->u.hurtall(rng(min, max));
+}
+
+std::string compact_hurt::save()
+{
+    std::stringstream data;
+    data << "hrt " << min << " " << max << " ";
+    return data.str();
+}
+
+compact_killmon::compact_killmon(std::stringstream &stream)
+{
+    stream >> tlx >> tly >> brx >> bry;
+}
+
+void compact_killmon::go()
+{
+    //for(int i = tlx + c->compx; i <= brx + c->compx; i++)
+    for(int i = tlx; i <= brx; i++)
+    {
+        //for(int j = tly + c->compy; j <= bry + c->compy; j++)
+        for(int j = tly; j <= bry; j++)
+        {
+            int mondex = g->mon_at(i, j);
+            if(mondex != -1)
+            {
+                // hopefully the mondex check is enough to ensure that critter_at is not null
+                g->critter_at(i, j)->die(nullptr);
+            }
+        }
+    }
+}
+
+std::string compact_killmon::save()
+{
+    std::stringstream data;
+    data << "kil " << tlx << " " << tly << " " << brx << " " << bry << " ";
+    return data.str();
+}
+
+compact_disease::compact_disease(std::stringstream &stream)
+{
+    stream >> d >> dur;
+}
+
+// going to assume just basic diseases for now, disease/duration only
+void compact_disease::go()
+{
+    g->u.add_disease((dis_type)d, dur);
+}
+
+std::string compact_disease::save()
+{
+    std::stringstream data;
+    data << "dis " << d << " " << dur << " ";
+    return data.str();
+}
+
+compact_pain::compact_pain(std::stringstream &stream)
+{
+    stream >> min >> max;
+}
+
+void compact_pain::go()
+{
+    g->u.pain += rng(min, max);
+}
+
+std::string compact_pain::save()
+{
+    std::stringstream data;
+    data << "pai " << min << " " << max << " ";
+    return data.str();
+}
+
+compact_event::compact_event(std::stringstream &stream)
+{
+    stream >> type >> turn >> fac >> eventx >> eventy;
+}
+
+void compact_event::go()
+{
+    g->add_event((event_type)type, calendar::turn + turn, fac, eventx, eventy);
+}
+
+std::string compact_event::save()
+{
+    std::stringstream data;
+    data << "evt " << type << " " << turn << " " << fac << " " << eventx << " " << eventy << " ";
+    return data.str();
+}
+
+void compact_cascade::go()
+{
+    if (!c->query_bool(_("WARNING: Resonance cascade carries severe risk!  Continue?")))
+    {
+        return;
+    }
+    g->u.add_memorial_log(_("Caused a resonance cascade."), _("Caused a resonance cascade."));
+    std::vector<point> cascade_points;
+    for (int i = g->u.posx - 10; i <= g->u.posx + 10; i++)
+    {
+        for (int j = g->u.posy - 10; j <= g->u.posy + 10; j++)
+        {
+            if (g->m.ter(i, j) == t_radio_tower)
+            {
+                cascade_points.push_back(point(i, j));
+            }
+        }
+    }
+    if (cascade_points.empty())
+    {
+        g->resonance_cascade(g->u.posx, g->u.posy);
+    }
+    else
+    {
+        point p = cascade_points[rng(0, cascade_points.size() - 1)];
+        g->resonance_cascade(p.x, p.y);
+    }
+}
+
+std::string compact_cascade::save()
+{
+    return "rcs ";
+}
+
+void compact_nuke::go()
+{
+/*
+    point target = g->cur_om->draw_overmap_in_window(c->w_terminal, 0);
+//    WINDOW* w = newwin(getmaxy(c->w_border)-2, 24,
+//                       getbegy(c->w_border)+1, getbegx(c->w_border)+1);
+//    for(int i = 0; i < getmaxy(c->w_border)-2; i++)
+//    {
+//        mvwputch(w, 24, i, c_yellow, LINE_XOXO);
+//    }
+    wrefresh(c->w_border);
+    wrefresh(c->w_terminal);
+
+    c->reset_terminal();
+    //c->print_line("You picked a %s.", oterlist[g->cur_om->ter(target.x, target.y, 0)].name.c_str());
+
+    if (target.x == -1)
+    {
+        g->add_msg(_("Target acquisition canceled"));
+        return;
+    }
+    if(query_yn(_("Confirm nuclear missile launch.")))
+    {
+        g->add_msg(_("Nuclear missile launched!"));
+    }
+    else
+    {
+        g->add_msg(_("Nuclear missile launch aborted."));
+        return;
+    }
+    g->refresh_all();
+
+    //Put some smoke gas and explosions at the nuke location.
+    for(int i= g->u.posx +8; i < g->u.posx +15; i++)
+    {
+        for(int j= g->u.posy +3; j < g->u.posy +12; j++)
+            if(!one_in(4))
+            {
+                g->m.add_field(NULL, i+rng(-2,2), j+rng(-2,2), fd_smoke, rng(1,9));
+            }
+    }
+
+    g->explosion(g->u.posx +10, g->u.posx +21, 200, 0, true); //Only explode once. But make it large.
+
+    //...ERASE MISSILE, OPEN SILO, DISABLE COMPUTER
+    // For each level between here and the surface, remove the missile
+    for (int level = g->levz; level <= 0; level++)
+    {
+        map tmpmap(&g->traps);
+        tmpmap.load(g, g->levx, g->levy, level, false);
+
+        if(level < 0)
+        {
+            tmpmap.translate(t_missile, t_hole);
+        }
+        else if(level == 0)
+        {
+            tmpmap.translate(t_metal_floor, t_hole);
+        }
+        tmpmap.save(g->cur_om, g->turn, g->levx, g->levy, level);
+    }
+
+    g->u.add_memorial_log(_("Launched a nuke at a %s."),
+            oterlist[g->cur_om->ter(target.x, target.y, 0)].name.c_str());
+    for(int x = target.x - 2; x <= target.x + 2; x++)
+    {
+        for(int y = target.y -  2; y <= target.y + 2; y++)
+        {
+            // make that nice circular shape
+            if(!((x==target.x-2 && y==target.y-2) ||
+                 (x==target.x-2 && y==target.y+2) ||
+                 (x==target.x+2 && y==target.y+2) ||
+                 (x==target.x+2 && y==target.y-2)))
+            {
+                g->nuke(x, y);
+            }
+        }
+    }
+
+    for(int i = 0; i < c->compopts.size(); i++)
+    {
+        for(int j = 0; j < c->compopts[i].actions.size(); j++)
+        {
+            if(c->compopts[i].actions[j] == this)
+            {
+                c->compopts[i].actions.erase(c->compopts[i].actions.begin() + j);
+                delete this;
+                c->compopts.erase(c->compopts.begin() + i);
+            }
+        }
+    }
+
+    touchwin(c->w_border);
+    wrefresh(c->w_border);
+    touchwin(c->w_terminal);
+    wrefresh(c->w_terminal);
+*/
+}
+
+std::string compact_nuke::save()
+{
+    return "nuk ";
+}
+
+compopt::compopt(std::stringstream &stream)
+{
+    int numsec, numact, numfail;
+    stream >> prompt >> numsec ;
+    prompt = helper::underscore_to_space(prompt);
+    for(int k = 0; k < numsec; k++)
+    {
+        std::string security;
+        stream >> security;
+        if(security == "pass")
+        {
+            add_security(new compsec_pass(stream));
+        }
+        if(security == "item")
+        {
+            add_security(new compsec_item(stream));
+        }
+        if(security == "hack")
+        {
+            add_security(new compsec_hack(stream));
+        }
+        if(security == "itemat")
+        {
+            add_security(new compsec_itemat(stream));
+        }
+    }
+    stream >> numact;
+    for(int i = 0; i < numact; i++)
+    {
+        std::string action;
+        stream >> action;
+        if(action == "cht")
+        {
+            add_action(new compact_chter(stream));
+        }
+        if(action == "msg")
+        {
+            add_action(new compact_msg(stream));
+        }
+        if(action == "map")
+        {
+            add_action(new compact_map(stream));
+        }
+        if(action == "itm")
+        {
+            add_action(new compact_item(stream));
+        }
+        if(action == "mon")
+        {
+            add_action(new compact_mon(stream));
+        }
+        if(action == "chz")
+        {
+            add_action(new compact_chlvl(stream));
+        }
+        if(action == "snd")
+        {
+            add_action(new compact_noise(stream));
+        }
+        if(action == "kil")
+        {
+            add_action(new compact_killmon(stream));
+        }
+        if(action == "trp")
+        {
+            add_action(new compact_trap(stream));
+        }
+        if(action == "fld")
+        {
+            add_action(new compact_field(stream));
+        }
+        if(action == "exp")
+        {
+            add_action(new compact_exp(stream));
+        }
+        if(action == "hrt")
+        {
+            add_action(new compact_hurt(stream));
+        }
+        if(action == "rmf")
+        {
+            add_action(new compact_remfield(stream));
+        }
+        if(action == "rmt")
+        {
+            add_action(new compact_remtrap(stream));
+        }
+    }
+    stream >> numfail;
+    for(int j = 0; j < numfail; j++)
+    {
+        std::string action;
+        stream >> action;
+        if(action == "cht")
+        {
+            add_failure(new compact_chter(stream));
+        }
+        if(action == "msg")
+        {
+            add_failure(new compact_msg(stream));
+        }
+        if(action == "map")
+        {
+            add_failure(new compact_map(stream));
+        }
+        if(action == "itm")
+        {
+            add_failure(new compact_item(stream));
+        }
+        if(action == "mon")
+        {
+            add_failure(new compact_mon(stream));
+        }
+        if(action == "chz")
+        {
+            add_failure(new compact_chlvl(stream));
+        }
+        if(action == "snd")
+        {
+            add_failure(new compact_noise(stream));
+        }
+        if(action == "kil")
+        {
+            add_failure(new compact_killmon(stream));
+        }
+        if(action == "trp")
+        {
+            add_failure(new compact_trap(stream));
+        }
+        if(action == "fld")
+        {
+            add_failure(new compact_field(stream));
+        }
+        if(action == "exp")
+        {
+            add_failure(new compact_exp(stream));
+        }
+        if(action == "hrt")
+        {
+            add_failure(new compact_hurt(stream));
+        }
+        if(action == "rmf")
+        {
+            add_failure(new compact_remfield(stream));
+        }
+        if(action == "rmt")
+        {
+            add_failure(new compact_remtrap(stream));
+        }
+    }
+}
+
+void compopt::go()
+{
+    if(security.size() > 0)
+    {
+        int s = security.size();
+        bool succeed = true;
+        for(int i = 0; i < s; i++)
+        {
+            succeed = succeed && security[i]->attempt();
+            if(!succeed)
+            {
+                break;
+            }
+        }
+
+        if(!succeed)
+        {
+            int f = failures.size();
+            for(int i = 0; i < f; i++)
+            {
+                failures[i]->go();
+            }
+            return;
+        }
+    }
+
+    int a = actions.size();
+    for(int i = 0; i < a; i++)
+    {
+        actions[i]->go();
+    }
+}
+
+void compopt::add_security(compsec *measure)
+{
+    security.push_back(measure);
+}
+
+void compopt::add_action(compact *action)
+{
+    actions.push_back(action);
+}
+
+void compopt::add_failure(compact *action)
+{
+    failures.push_back(action);
+}
+
+std::string compopt::save()
+{
+    std::stringstream data;
+    data << helper::space_to_underscore(prompt) << " " << security.size() << " ";
+    for(int i = 0; i < security.size(); i++)
+    {
+        data << security[i]->save();
+    }
+    data << actions.size() << " ";
+    for(int i = 0; i < actions.size(); i++)
+    {
+        data << actions[i]->save();
+    }
+    data << failures.size() << " ";
+    for(int i = 0; i < failures.size(); i++)
+    {
+        data << failures[i]->save();
+    }
+    return data.str();
+}
+
+void compopt::set_computer(computer *comp)
+{
+    c = comp;
+    for(int i = 0; i < security.size(); i++)
+    {
+        security[i]->set_computer(comp);
+    }
+    for(int i = 0; i < actions.size(); i++)
+    {
+        actions[i]->set_computer(comp);
+    }
+    for(int i = 0; i < failures.size(); i++)
+    {
+        failures[i]->set_computer(comp);
+    }
+}
 
 computer::computer(): name(DEFAULT_COMPUTER_NAME)
 {
