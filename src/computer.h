@@ -417,6 +417,8 @@ public:
     void add_action(compact*);
     void add_failure(compact*);
 
+    std::string prompt;
+
     std::string save();
     void set_computer(computer*);
 
@@ -426,7 +428,6 @@ private:
     std::vector<compsec*> security;
     std::vector<compact*> actions;
     std::vector<compact*> failures;
-    std::string prompt;
 };
 
 class computer
@@ -496,6 +497,9 @@ class computer
         bool query_any(const char *text, ...);
         // Move the cursor to the beginning of the next line
         void print_newline();
+
+    private:
+        std::vector<compopt> compopts;
 };
 
 #endif

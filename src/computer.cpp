@@ -15,6 +15,24 @@
 std::vector<std::string> computer::lab_notes;
 int alerts = 0;
 
+/*
+in mapgen, generation uses tinymap class which is 2x2 submaps, so all coordinates are relative to a
+single 24x24 map tile area.  during gameplay, the reality bubble map is used, which is much larger
+so coordinates will NOT be equal between the two.
+
+for computer options that rely on coordinates, assuming coordinates come from json (in the future),
+should save the coordinates of the computer, save the coordinates specified in json, calculate offset
+between the computer and the target coordinates, then save and process based on the offset.
+
+ex:
+ 012345
+0...... c is computer, t is target
+1.c.... c: (1,1) t:(2,4)
+2...... save t.x and t.y as as offsets relative to c, or (1,3)
+3......
+4..t...
+5......
+*/
 compsec_pass::compsec_pass(std::stringstream& stream)
 {
     stream >> pass;
@@ -871,6 +889,19 @@ compopt::compopt(std::stringstream &stream)
     }
 }
 
+compopt::~compopt()
+{
+    for(auto it = actions.begin(); it != actions.end(); ++it){
+        delete *it;
+    }
+    for(auto it = failures.begin(); it != failures.end(); ++it){
+        delete *it;
+    }
+    for(auto it = security.begin(); it != security.end(); ++it){
+        delete *it;
+    }
+}
+
 void compopt::go()
 {
     if(security.size() > 0)
@@ -1041,6 +1072,10 @@ void computer::use()
 
     // Login
     print_line(_("Logging into %s..."), name.c_str());
+
+    bool legacy = (this->compopts.size() == 0);
+    // This is how we process legacy computers
+    if(legacy){
     if (security > 0) {
         print_error(_("ERROR!  Access denied!"));
         switch (query_ynq(_("Bypass security?"))) {
@@ -1118,6 +1153,42 @@ void computer::use()
             reset_terminal();
         } // Done processing a selected option.
     }
+    } else {
+    // end legacy computer processing
+    // new computer processing
+    // Main computer loop
+    for (bool InUse = true; InUse; )
+    {
+        print_newline();
+        print_line("%s - %s", name.c_str(), _("Root Menu"));
+        for (int i = 0; i < compopts.size(); i++)
+        {
+            print_line("%d - %s", i + 1, compopts[i].prompt.c_str());
+        }
+        print_line("Q - %s", _("Quit and shut down"));
+        print_newline();
+
+        char ch;
+        do
+        {
+            ch = getch();
+        }
+        while (ch != 'q' && ch != 'Q' && (ch < '1' || ch - '1' >= compopts.size()));
+
+        if (ch == 'q' || ch == 'Q')
+        {
+            InUse = false;
+        }
+        else   // We selected an option other than quit.
+        {
+            ch -= '1'; // So '1' -> 0; index in options.size()
+            compopts[ch].go();
+            query_any(_("Press any key to continue..."));
+            reset_terminal();
+        } // Done processing a selected option.
+    }
+    }
+    // end new computer procesing
 
     shutdown_terminal(); // This should have been done by now, but just in case.
 }
