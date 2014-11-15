@@ -93,6 +93,18 @@ public:
     void set_computer(computer* comp){c=comp;}
 };
 
+class compsec_trait : public compsec
+{
+public:
+    compsec_trait(std::string trait) : t(trait){}
+    compsec_trait(std::stringstream& stream);
+    compsec_trait(JsonObject& jo);
+    ~compsec(){}
+    bool attempt();
+    std::string save();
+    std::string t;
+};
+
 class compsec_pass : public compsec
 {
 public:

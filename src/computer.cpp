@@ -33,6 +33,29 @@ ex:
 4..t...
 5......
 */
+
+compsec_trait::compsec_trait(std::stringstream& stream)
+{
+    stream >> t;
+}
+
+compsec_trait::compsec_trait(JsonObject& jo)
+{
+    t = jo.get_string("trait");
+}
+
+bool compsec_trait::attempt()
+{
+    return g->u.has_trait(t);
+}
+
+std::string compsec_trait::save()
+{
+    std::stringstream data;
+    data << "trait " << t << " ";
+    return data.str();
+}
+
 compsec_pass::compsec_pass(std::stringstream& stream)
 {
     stream >> pass;
@@ -935,6 +958,10 @@ compopt::compopt(std::stringstream &stream)
         if(security == "itemat")
         {
             add_security(new compsec_itemat(stream));
+        }
+        if(security == "trait")
+        {
+            add_security(new compsec_trait(stream));
         }
     }
     stream >> numact;
