@@ -38,6 +38,11 @@ compsec_pass::compsec_pass(std::stringstream& stream)
     stream >> pass;
 }
 
+compsec_pass::compsec_pass(JsonObject& jo)
+{
+    pass = jo.get_string("pass");
+}
+
 bool compsec_pass::attempt()
 {
     std::string input = string_input_popup(_("Enter Password"), 256);
@@ -54,6 +59,11 @@ std::string compsec_pass::save()
 compsec_hack::compsec_hack(std::stringstream &stream)
 {
     stream >> diff;
+}
+
+compsec_hack::compsec_hack(JsonObject& jo)
+{
+    diff = jo.get_int("diff", 1);
 }
 
 bool compsec_hack::attempt()
@@ -85,6 +95,11 @@ compsec_item::compsec_item(std::stringstream &stream)
     stream >> it >> num;
 }
 
+compsec_item::compsec_item(JsonObject& jo)
+{
+    it = jo.get_string("item");
+}
+
 bool compsec_item::attempt()
 {
     if(g->u.has_amount(it, num))
@@ -108,6 +123,13 @@ std::string compsec_item::save()
 compsec_itemat::compsec_itemat(std::stringstream &stream)
 {
     stream >> it >> itemx >> itemy;
+}
+
+compsec_itemat::compsec_itemat(JsonObject& jo)
+{
+    it = jo.get_string("item");
+    itemx = jo.get_array("loc").next_int();
+    itemy = jo.get_array("loc").next_int();
 }
 
 bool compsec_itemat::attempt()
@@ -138,6 +160,18 @@ compsec_containerat::compsec_containerat(std::stringstream &stream)
     if(!empty)
     {
         stream >> it;
+    }
+}
+
+compsec_containerat::compsec_containerat(JsonObject& jo)
+{
+    itemx = jo.get_array("loc").next_int();
+    itemy = jo.get_array("loc").next_int();
+    wt = jo.get_bool("watertight");
+    soft = jo.get_bool("software");
+    empty = jo.get_bool("empty");
+    if(!empty){
+        it = jo.get_string("contents");
     }
 }
 
@@ -203,6 +237,13 @@ compact_chter::compact_chter(std::stringstream &stream)
     stream >> terx >> tery >> ter;
 }
 
+compact_chter::compact_chter(JsonObject& jo)
+{
+    ter = jo.get_string("terrain");
+    terx = jo.get_array("loc").next_int();
+    tery = jo.get_array("loc").next_int();
+}
+
 void compact_chter::go()
 {
     //g->m.ter_set(c->compx + terx, c->compy + tery, ter);
@@ -220,6 +261,11 @@ compact_msg::compact_msg(std::stringstream &stream)
 {
     stream >> msg;
     msg = helper::swap_char(helper::underscore_to_space(msg), '|', '\n');
+}
+
+compact_msg::compact_msg(JsonObject &jo)
+{
+    msg = jo.get_string("message");
 }
 
 void compact_msg::go()
@@ -240,9 +286,14 @@ compact_chlvl::compact_chlvl(std::stringstream &stream)
     stream >> z;
 }
 
+compact_chlvl::compact_chlvl(JsonObject &jo)
+{
+    z = jo.get_int("z");
+}
+
 void compact_chlvl::go()
 {
-    g->vertical_move(z, false);
+    g->vertical_move(z, true);
 }
 
 std::string compact_chlvl::save()
@@ -258,8 +309,16 @@ compact_noise::compact_noise(std::stringstream &stream)
     desc = helper::underscore_to_space(desc);
 }
 
+compact_noise::compact_noise(JsonObject &jo)
+{
+    vol = jo.get_int("volume");
+    desc = jo.get_string("message");
+}
+
 void compact_noise::go()
 {
+    // maybe dont use the users position?
+    // use consoles, or specify location
     g->sound(g->u.posx, g->u.posy, vol, desc);
 }
 
@@ -273,6 +332,13 @@ std::string compact_noise::save()
 compact_mon::compact_mon(std::stringstream &stream)
 {
     stream >> monx >> mony >> mon;
+}
+
+compact_mon::compact_mon(JsonObject &jo)
+{
+    mon = jo.get_string("monster");
+    monx = jo.get_array("loc").next_int();
+    mony = jo.get_array("loc").next_int();
 }
 
 void compact_mon::go()
@@ -295,6 +361,13 @@ compact_item::compact_item(std::stringstream &stream)
     stream >> itemx >> itemy >> it;
 }
 
+compact_item::compact_item(JsonObject &jo)
+{
+    it = jo.get_string("item");
+    itemx = jo.get_array("loc").next_int();
+    itemy = jo.get_array("loc").next_int();
+}
+
 void compact_item::go()
 {
     //g->m.spawn_item(c->compx + itemx, c->compy + itemy, it, 0, 1);
@@ -311,6 +384,14 @@ std::string compact_item::save()
 compact_fill::compact_fill(std::stringstream &stream)
 {
     stream >> itemx >> itemy >> it >> amt;
+}
+
+compact_fill::compact_fill(JsonObject &jo)
+{
+    it = jo.get_string("item");
+    amt = jo.get_int("amount");
+    itemx = jo.get_array("loc").next_int();
+    itemy = jo.get_array("loc").next_int();
 }
 
 void compact_fill::go()
@@ -345,6 +426,16 @@ compact_map::compact_map(std::stringstream &stream)
         std::string val;
         stream >> val;
         types.push_back(val);
+    }
+}
+
+compact_map::compact_map(JsonObject &jo)
+{
+    rad = jo.get_int("radius");
+    z = jo.get_int("z");
+    JsonArray typeArray = jo.get_array("types");
+    while(typeArray.has_more()){
+        types.push_back(typeArray.next_string());
     }
 }
 
@@ -416,6 +507,18 @@ compact_trap::compact_trap(std::stringstream &stream)
     stream >> trapx >> trapy >> t;
 }
 
+compact_trap::compact_trap(JsonObject &jo)
+{
+    if(trapmap.find(jo.get_string("trap")) != trapmap.end()){
+        t = trapmap[(jo.get_string("trap"))];
+    } else {
+        t = tr_null;
+    }
+
+    trapx = jo.get_array("loc").next_int();
+    trapy = jo.get_array("loc").next_int();
+}
+
 void compact_trap::go()
 {
     //g->m.add_trap(trapx+c->compx, trapy+c->compy, (trap_id)t);
@@ -432,6 +535,12 @@ std::string compact_trap::save()
 compact_remtrap::compact_remtrap(std::stringstream &stream)
 {
     stream >> trapx >> trapy;
+}
+
+compact_remtrap::compact_remtrap(JsonObject &jo)
+{
+    trapx = jo.get_array("loc").next_int();
+    trapy = jo.get_array("loc").next_int();
 }
 
 void compact_remtrap::go()
@@ -452,6 +561,14 @@ compact_field::compact_field(std::stringstream &stream)
     stream >> fieldx >> fieldy >> f >> den;
 }
 
+compact_field::compact_field(JsonObject &jo)
+{
+    f = field_from_ident(jo.get_string("field"));
+    den = jo.get_int("density");
+    fieldx = jo.get_array("loc").next_int();
+    fieldy = jo.get_array("loc").next_int();
+}
+
 void compact_field::go()
 {
     g->m.add_field(fieldx, fieldy, (field_id)f, den);
@@ -469,6 +586,14 @@ compact_remfield::compact_remfield(std::stringstream &stream)
     stream >> fieldx >> fieldy >> f;
 }
 
+compact_remfield::compact_remfield(JsonObject &jo)
+{
+    f = field_from_ident(jo.get_string("field"));
+    fieldx = jo.get_array("loc").next_int();
+    fieldy = jo.get_array("loc").next_int();
+}
+
+
 void compact_remfield::go()
 {
     //g->m.remove_field(fieldx + c->compx, fieldy + c->compy, (field_id)f);
@@ -485,6 +610,15 @@ std::string compact_remfield::save()
 compact_exp::compact_exp(std::stringstream &stream)
 {
     stream >> expx >> expy >> pwr >> shrap >> fire;
+}
+
+compact_exp::compact_exp(JsonObject &jo)
+{
+    pwr = jo.get_int("power");
+    shrap = jo.get_int("shrapnel");
+    fire = jo.get_bool("fiery");
+    expx = jo.get_array("loc").next_int();
+    expy = jo.get_array("loc").next_int();
 }
 
 void compact_exp::go()
@@ -505,6 +639,12 @@ compact_hurt::compact_hurt(std::stringstream &stream)
     stream >> min >> max;
 }
 
+compact_hurt::compact_hurt(JsonObject &jo)
+{
+    min = jo.get_array("damage").next_int();
+    max = jo.get_array("damage").next_int();
+}
+
 void compact_hurt::go()
 {
     g->u.hurtall(rng(min, max));
@@ -520,6 +660,14 @@ std::string compact_hurt::save()
 compact_killmon::compact_killmon(std::stringstream &stream)
 {
     stream >> tlx >> tly >> brx >> bry;
+}
+
+compact_killmon::compact_killmon(JsonObject &jo)
+{
+    tlx = jo.get_array("topleft").next_int();
+    tly = jo.get_array("topleft").next_int();
+    brx = jo.get_array("bottomright").next_int();
+    bry = jo.get_array("bottomright").next_int();
 }
 
 void compact_killmon::go()
@@ -552,6 +700,12 @@ compact_disease::compact_disease(std::stringstream &stream)
     stream >> d >> dur;
 }
 
+compact_disease::compact_disease(JsonObject &jo)
+{
+    d = jo.get_string("disease");
+    dur = jo.get_int("duration");
+}
+
 // going to assume just basic diseases for now, disease/duration only
 void compact_disease::go()
 {
@@ -570,6 +724,12 @@ compact_pain::compact_pain(std::stringstream &stream)
     stream >> min >> max;
 }
 
+compact_pain::compact_pain(JsonObject &jo)
+{
+    min = jo.get_array("pain").next_int();
+    max = jo.get_array("pain").next_int();
+}
+
 void compact_pain::go()
 {
     g->u.pain += rng(min, max);
@@ -585,6 +745,20 @@ std::string compact_pain::save()
 compact_event::compact_event(std::stringstream &stream)
 {
     stream >> type >> turn >> fac >> eventx >> eventy;
+}
+
+compact_event::compact_event(JsonObject &jo)
+{
+    type = jo.get_int("type");
+    turn = jo.get_int("turn");
+    fac = jo.get_int("faction", -1);
+    if(jo.has_array("loc")){
+        eventx = jo.get_array("loc").next_int();
+        eventy = jo.get_array("loc").next_int();
+    } else {
+        eventx = INT_MIN;
+        eventy = INT_MIN;
+    }
 }
 
 void compact_event::go()
@@ -889,6 +1063,102 @@ compopt::compopt(std::stringstream &stream)
     }
 }
 
+// made from assumption on json structure at
+// https://github.com/vache/Cataclysm-DDA/issues/7
+compopt::compopt(JsonObject& jo)
+{
+    prompt = jo.get_string("prompt");
+    JsonArray secArray = jo.get_array("security");
+    while(secArray.has_more()){
+        JsonObject secObject = secArray.next_object();
+        std::string type = secObject.get_string("security");
+
+        if(type == "pass"){
+            add_security(new compsec_pass(secObject));
+        } else if(type == "item"){
+            add_security(new compsec_item(secObject));
+        } else if(type == "hack"){
+            add_security(new compsec_hack(secObject));
+        } else if(type == "itemat"){
+            add_security(new compsec_itemat(secObject));
+        } else if(type == "contat"){
+            add_security(new compsec_containerat(secObject));
+        }
+    }
+
+    JsonArray successArray = jo.get_array("actions");
+    while(successArray.has_more()){
+        JsonObject successObject = successArray.next_object();
+        std::string type = successObject.get_string("action");
+
+        if(type == "cht"){
+            add_action(new compact_chter(successObject));
+        } else if(type == "msg"){
+            add_action(new compact_msg(successObject));
+        } else if(type == "map"){
+            add_action(new compact_map(successObject));
+        } else if(type == "itm"){
+            add_action(new compact_item(successObject));
+        } else if(type == "mon"){
+            add_action(new compact_mon(successObject));
+        } else if(type == "chz"){
+            add_action(new compact_chlvl(successObject));
+        } else if(type == "snd"){
+            add_action(new compact_noise(successObject));
+        } else if(type == "kil"){
+            add_action(new compact_killmon(successObject));
+        } else if(type == "trp"){
+            add_action(new compact_trap(successObject));
+        } else if(type == "fld"){
+            add_action(new compact_field(successObject));
+        } else if(type == "exp"){
+            add_action(new compact_exp(successObject));
+        } else if(type == "hrt"){
+            add_action(new compact_hurt(successObject));
+        } else if(type == "rmf"){
+            add_action(new compact_remfield(successObject));
+        } else if(type == "rmt"){
+            add_action(new compact_remtrap(successObject));
+        }
+    }
+
+    JsonArray failureArray = jo.get_array("failures");
+    while(failureArray.has_more()){
+        JsonObject failureObject = failureArray.next_object();
+        std::string type = failureObject.get_string("action");
+
+        if(type == "cht"){
+            add_failure(new compact_chter(failureObject));
+        } else if(type == "msg"){
+            add_failure(new compact_msg(failureObject));
+        } else if(type == "map"){
+            add_failure(new compact_map(failureObject));
+        } else if(type == "itm"){
+            add_failure(new compact_item(failureObject));
+        } else if(type == "mon"){
+            add_failure(new compact_mon(failureObject));
+        } else if(type == "chz"){
+            add_failure(new compact_chlvl(failureObject));
+        } else if(type == "snd"){
+            add_failure(new compact_noise(failureObject));
+        } else if(type == "kil"){
+            add_failure(new compact_killmon(failureObject));
+        } else if(type == "trp"){
+            add_failure(new compact_trap(failureObject));
+        } else if(type == "fld"){
+            add_failure(new compact_field(failureObject));
+        } else if(type == "exp"){
+            add_failure(new compact_exp(failureObject));
+        } else if(type == "hrt"){
+            add_failure(new compact_hurt(failureObject));
+        } else if(type == "rmf"){
+            add_failure(new compact_remfield(failureObject));
+        } else if(type == "rmt"){
+            add_failure(new compact_remtrap(failureObject));
+        }
+    }
+}
+
 compopt::~compopt()
 {
     for(auto it = actions.begin(); it != actions.end(); ++it){
@@ -1076,117 +1346,117 @@ void computer::use()
     bool legacy = (this->compopts.size() == 0);
     // This is how we process legacy computers
     if(legacy){
-    if (security > 0) {
-        print_error(_("ERROR!  Access denied!"));
-        switch (query_ynq(_("Bypass security?"))) {
-        case 'q':
-        case 'Q':
-            shutdown_terminal();
-            return;
-
-        case 'n':
-        case 'N':
-            query_any(_("Shutting down... press any key."));
-            shutdown_terminal();
-            return;
-
-        case 'y':
-        case 'Y':
-            if (!hack_attempt(&(g->u))) {
-                if (failures.empty()) {
-                    query_any(_("Maximum login attempts exceeded. Press any key..."));
-                    shutdown_terminal();
-                    return;
-                }
-                activate_random_failure();
+        if (security > 0) {
+            print_error(_("ERROR!  Access denied!"));
+            switch (query_ynq(_("Bypass security?"))) {
+            case 'q':
+            case 'Q':
                 shutdown_terminal();
                 return;
-            } else { // Successful hack attempt
-                security = 0;
-                query_any(_("Login successful.  Press any key..."));
-                reset_terminal();
-            }
-        }
-    } else { // No security
-        query_any(_("Login successful.  Press any key..."));
-        reset_terminal();
-    }
 
-    // Main computer loop
-    while(true) {
-        //reset_terminal();
-        size_t options_size = options.size();
-        print_newline();
-        print_line("%s - %s", name.c_str(), _("Root Menu"));
-        for (size_t i = 0; i < options_size; i++) {
-            print_line("%d - %s", i + 1, options[i].name.c_str());
-        }
-        print_line("Q - %s", _("Quit and shut down"));
-        print_newline();
+            case 'n':
+            case 'N':
+                query_any(_("Shutting down... press any key."));
+                shutdown_terminal();
+                return;
 
-        char ch;
-        do {
-            ch = getch();
-        } while (ch != 'q' && ch != 'Q' && (ch < '1' || ch - '1' >= (char)options_size));
-        if (ch == 'q' || ch == 'Q') {
-            break; // Exit from main computer loop
-        } else { // We selected an option other than quit.
-            ch -= '1'; // So '1' -> 0; index in options.size()
-            computer_option current = options[ch];
-            // Once you trip the security, you have to roll every time you want to do something
-            if ((current.security + (alerts)) > 0) {
-                print_error(_("Password required."));
-                if (query_bool(_("Hack into system?"))) {
-                    if (!hack_attempt(&(g->u), current.security)) {
-                        activate_random_failure();
+            case 'y':
+            case 'Y':
+                if (!hack_attempt(&(g->u))) {
+                    if (failures.empty()) {
+                        query_any(_("Maximum login attempts exceeded. Press any key..."));
                         shutdown_terminal();
                         return;
-                    } else {
-                        // Successfully hacked function
-                        options[ch].security = 0;
-                        activate_function(current.action);
                     }
+                    activate_random_failure();
+                    shutdown_terminal();
+                    return;
+                } else { // Successful hack attempt
+                    security = 0;
+                    query_any(_("Login successful.  Press any key..."));
+                    reset_terminal();
                 }
-            } else { // No need to hack, just activate
-                activate_function(current.action);
             }
+        } else { // No security
+            query_any(_("Login successful.  Press any key..."));
             reset_terminal();
-        } // Done processing a selected option.
-    }
+        }
+
+        // Main computer loop
+        while(true) {
+            //reset_terminal();
+            size_t options_size = options.size();
+            print_newline();
+            print_line("%s - %s", name.c_str(), _("Root Menu"));
+            for (size_t i = 0; i < options_size; i++) {
+                print_line("%d - %s", i + 1, options[i].name.c_str());
+            }
+            print_line("Q - %s", _("Quit and shut down"));
+            print_newline();
+
+            char ch;
+            do {
+                ch = getch();
+            } while (ch != 'q' && ch != 'Q' && (ch < '1' || ch - '1' >= (char)options_size));
+            if (ch == 'q' || ch == 'Q') {
+                break; // Exit from main computer loop
+            } else { // We selected an option other than quit.
+                ch -= '1'; // So '1' -> 0; index in options.size()
+                computer_option current = options[ch];
+                // Once you trip the security, you have to roll every time you want to do something
+                if ((current.security + (alerts)) > 0) {
+                    print_error(_("Password required."));
+                    if (query_bool(_("Hack into system?"))) {
+                        if (!hack_attempt(&(g->u), current.security)) {
+                            activate_random_failure();
+                            shutdown_terminal();
+                            return;
+                        } else {
+                            // Successfully hacked function
+                            options[ch].security = 0;
+                            activate_function(current.action);
+                        }
+                    }
+                } else { // No need to hack, just activate
+                    activate_function(current.action);
+                }
+                reset_terminal();
+            } // Done processing a selected option.
+        }
     } else {
-    // end legacy computer processing
-    // new computer processing
-    // Main computer loop
-    for (bool InUse = true; InUse; )
-    {
-        print_newline();
-        print_line("%s - %s", name.c_str(), _("Root Menu"));
-        for (int i = 0; i < compopts.size(); i++)
+        // end legacy computer processing
+        // new computer processing
+        // Main computer loop
+        for (bool InUse = true; InUse; )
         {
-            print_line("%d - %s", i + 1, compopts[i].prompt.c_str());
-        }
-        print_line("Q - %s", _("Quit and shut down"));
-        print_newline();
+            print_newline();
+            print_line("%s - %s", name.c_str(), _("Root Menu"));
+            for (int i = 0; i < compopts.size(); i++)
+            {
+                print_line("%d - %s", i + 1, compopts[i].prompt.c_str());
+            }
+            print_line("Q - %s", _("Quit and shut down"));
+            print_newline();
 
-        char ch;
-        do
-        {
-            ch = getch();
-        }
-        while (ch != 'q' && ch != 'Q' && (ch < '1' || ch - '1' >= compopts.size()));
+            char ch;
+            do
+            {
+                ch = getch();
+            }
+            while (ch != 'q' && ch != 'Q' && (ch < '1' || ch - '1' >= compopts.size()));
 
-        if (ch == 'q' || ch == 'Q')
-        {
-            InUse = false;
+            if (ch == 'q' || ch == 'Q')
+            {
+                InUse = false;
+            }
+            else   // We selected an option other than quit.
+            {
+                ch -= '1'; // So '1' -> 0; index in options.size()
+                compopts[ch].go();
+                query_any(_("Press any key to continue..."));
+                reset_terminal();
+            } // Done processing a selected option.
         }
-        else   // We selected an option other than quit.
-        {
-            ch -= '1'; // So '1' -> 0; index in options.size()
-            compopts[ch].go();
-            query_any(_("Press any key to continue..."));
-            reset_terminal();
-        } // Done processing a selected option.
-    }
     }
     // end new computer procesing
 

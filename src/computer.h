@@ -98,6 +98,7 @@ class compsec_pass : public compsec
 public:
     compsec_pass(std::string password) : pass(password){}
     compsec_pass(std::stringstream& stream);
+    compsec_pass(JsonObject& jo);
     ~compsec_pass(){}
     bool attempt();
     std::string save();
@@ -109,6 +110,7 @@ class compsec_hack : public compsec
 public:
     compsec_hack(int difficulty) : diff(difficulty){}
     compsec_hack(std::stringstream& stream);
+    compsec_hack(JsonObject& jo);
     ~compsec_hack(){}
     bool attempt();
     std::string save();
@@ -120,6 +122,7 @@ class compsec_item : public compsec
 public:
     compsec_item(std::string item, int quantity) : it(item), num(quantity){}
     compsec_item(std::stringstream& stream);
+    compsec_item(JsonObject& jo);
     ~compsec_item(){}
     bool attempt();
     std::string save();
@@ -132,6 +135,7 @@ class compsec_itemat : public compsec
 public:
     compsec_itemat(std::string item, int x, int y) : it(item), itemx(x), itemy(y){}
     compsec_itemat(std::stringstream& stream);
+    compsec_itemat(JsonObject& jo);
     ~compsec_itemat(){}
     bool attempt();
     std::string save();
@@ -146,6 +150,7 @@ public:
     compsec_containerat(int x, int y, bool watertight, bool software, bool empty, std::string containing = "") :
         itemx(x), itemy(y), wt(watertight), soft(software), empty(empty), it(containing){}
     compsec_containerat(std::stringstream& stream);
+    compsec_containerat(JsonObject& jo);
     ~compsec_containerat(){}
     bool attempt();
     std::string save();
@@ -172,6 +177,7 @@ class compact_chter : public compact
 public:
     compact_chter(int x, int y, std::string terrain) : terx(x), tery(y), ter(terrain){}
     compact_chter(std::stringstream& stream);
+    compact_chter(JsonObject& jo);
     ~compact_chter(){}
     void go();
     std::string save();
@@ -185,6 +191,7 @@ class compact_msg : public compact
 public:
     compact_msg(std::string message) : msg(message) {}
     compact_msg(std::stringstream& stream);
+    compact_msg(JsonObject& jo);
     ~compact_msg(){}
     void go();
     std::string save();
@@ -196,6 +203,7 @@ class compact_chlvl : public compact
 public:
     compact_chlvl(int lvls) : z(lvls) {}
     compact_chlvl(std::stringstream& stream);
+    compact_chlvl(JsonObject& jo);
     ~compact_chlvl(){}
     void go();
     std::string save();
@@ -207,6 +215,7 @@ class compact_noise : public compact
 public:
     compact_noise(int volume, std::string description) : vol(volume), desc(description) {}
     compact_noise(std::stringstream& stream);
+    compact_noise(JsonObject& jo);
     ~compact_noise(){}
     void go();
     std::string save();
@@ -219,6 +228,7 @@ class compact_mon : public compact
 public:
     compact_mon(int x, int y, std::string monster) : monx(x), mony(y), mon(monster) {}
     compact_mon(std::stringstream& stream);
+    compact_mon(JsonObject& jo);
     ~compact_mon(){}
     void go();
     std::string save();
@@ -232,6 +242,7 @@ class compact_item : public compact
 public:
     compact_item(int x, int y, std::string item) : itemx(x), itemy(y), it(item) {}
     compact_item(std::stringstream& stream);
+    compact_item(JsonObject& jo);
     ~compact_item(){}
     void go();
     std::string save();
@@ -245,6 +256,7 @@ class compact_fill : public compact
 public:
     compact_fill(int x, int y, std::string item, int charges) : itemx(x), itemy(y), it(item), amt(charges) {}
     compact_fill(std::stringstream & stream);
+    compact_fill(JsonObject& jo);
     ~compact_fill(){}
     void go();
     std::string save();
@@ -258,6 +270,7 @@ class compact_map : public compact
 public:
     compact_map(int radius, int zlvl, std::vector<std::string> omtypes = std::vector<std::string>()) : rad(radius), z(zlvl), types(omtypes){}
     compact_map(std::stringstream& stream);
+    compact_map(JsonObject& jo);
     ~compact_map(){}
     void go();
     std::string save();
@@ -271,6 +284,7 @@ class compact_trap : public compact
 public:
     compact_trap(int x, int y, int trap) : trapx(x), trapy(y), t(trap){}
     compact_trap(std::stringstream& stream);
+    compact_trap(JsonObject& jo);
     ~compact_trap() {}
     void go();
     std::string save();
@@ -282,6 +296,7 @@ class compact_remtrap : public compact
 public:
     compact_remtrap(int x, int y) : trapx(x), trapy(y) {}
     compact_remtrap(std::stringstream& stream);
+    compact_remtrap(JsonObject& jo);
     ~compact_remtrap(){}
     void go();
     std::string save();
@@ -293,6 +308,7 @@ class compact_field : public compact
 public:
     compact_field(int x, int y, int field, char density) : fieldx(x), fieldy(y), f(field), den(density) {}
     compact_field(std::stringstream& stream);
+    compact_field(JsonObject& jo);
     ~compact_field() {}
     void go();
     std::string save();
@@ -307,6 +323,7 @@ class compact_remfield : public compact
 public:
     compact_remfield(int x, int y, int field) : fieldx(x), fieldy(y), f(field){}
     compact_remfield(std::stringstream& stream);
+    compact_remfield(JsonObject& jo);
     ~compact_remfield(){}
     void go();
     std::string save();
@@ -318,6 +335,7 @@ class compact_exp : public compact
 public:
     compact_exp(int x, int y, int power, int shrapnel, bool startfire) : expx(x), expy(y), pwr(power), shrap(shrapnel), fire(startfire){}
     compact_exp(std::stringstream& stream);
+    compact_exp(JsonObject& jo);
     ~compact_exp(){}
     void go();
     std::string save();
@@ -330,6 +348,7 @@ class compact_hurt : public compact
 public:
     compact_hurt(int mindamage, int maxdamage) : min(mindamage), max(maxdamage){}
     compact_hurt(std::stringstream& stream);
+    compact_hurt(JsonObject& jo);
     ~compact_hurt(){}
     void go();
     std::string save();
@@ -342,6 +361,7 @@ public:
     compact_killmon(int topleftx, int toplefty, int bottomrightx, int bottomrighty) :
         tlx(topleftx), tly(toplefty), brx(bottomrightx), bry(bottomrighty) {}
     compact_killmon(std::stringstream &stream);
+    compact_killmon(JsonObject& jo);
     ~compact_killmon(){}
     void go();
     std::string save();
@@ -354,6 +374,7 @@ class compact_disease : public compact
 public:
     compact_disease(std::string disease, int duration) : d(disease), dur(duration){}
     compact_disease(std::stringstream& stream);
+    compact_disease(JsonObject& jo);
     ~compact_disease(){}
     void go();
     std::string save();
@@ -366,6 +387,7 @@ class compact_pain : public compact
 public:
     compact_pain(int minpain, int maxpain) : min(minpain), max(maxpain) {}
     compact_pain(std::stringstream& stream);
+    compact_pain(JsonObject& jo);
     ~compact_pain(){}
     void go();
     std::string save();
@@ -378,6 +400,7 @@ public:
     compact_event(int eventtype, int when, int faction = -1, int x = -1, int y = -1) :
         type(eventtype), turn(when), fac(faction), eventx(x), eventy(y){}
     compact_event(std::stringstream& stream);
+    compact_event(JsonObject& jo);
     ~compact_event(){}
     void go();
     std::string save();
@@ -389,6 +412,7 @@ class compact_cascade : public compact
 public:
     compact_cascade() {}
     compact_cascade(std::stringstream& stream){}
+    compact_cascade(JsonObject& jo){}
     ~compact_cascade(){}
     void go();
     std::string save();
@@ -398,7 +422,8 @@ class compact_nuke : public compact
 {
 public:
     compact_nuke(){}
-    compact_nuke(std::stringstream& stream);
+    compact_nuke(std::stringstream& stream){}
+    compact_nuke(JsonObject& jo){}
     ~compact_nuke(){}
     void go();
     std::string save();
@@ -411,6 +436,7 @@ class compopt
 public:
     compopt(std::string msg) : prompt(msg) {}
     compopt(std::stringstream& stream);
+    compopt(JsonObject& jo);
     ~compopt();
     void go();
     void add_security(compsec*);
