@@ -26,7 +26,7 @@ between the computer and the target coordinates, then save and process based on 
 
 ex:
  012345
-0...... c is computer, t is target
+0...... c is computer, t is target, read as specified in json
 1.c.... c: (1,1) t:(2,4)
 2...... save t.x and t.y as as offsets relative to c, or (1,3)
 3......
@@ -1351,6 +1351,12 @@ void computer::shutdown_terminal()
     werase(w_border);
     delwin(w_border);
     w_border = NULL;
+}
+
+void computer::add_compopt(compopt option)
+{
+    option.set_computer(this);
+    this->compopts.push_back(option);
 }
 
 void computer::use()

@@ -478,7 +478,10 @@ class computer
         computer &operator=(const computer &rhs);
         // Initialization
         void set_security(int Security);
+        // Add legacy options
         void add_option(std::string opt_name, computer_action action, int Security);
+        // Add new options
+        void add_compopt(compopt option);
         void add_failure(computer_failure failure);
         // Basic usage
         void shutdown_terminal(); // Shutdown (free w_terminal, etc)
