@@ -34,6 +34,83 @@ ex:
 5......
 */
 
+compsec_skillcheck::compsec_skillcheck(std::stringstream& stream)
+{
+    stream >> skill >> diff;
+}
+
+// make some way to enforce valid skills
+compsec_skillcheck::compsec_skillcheck(JsonObject& jo)
+{
+    skill = jo.get_string("skill");
+    diff = jo.get_int("difficulty");
+}
+
+// come up with a good skill independent way to calculate
+bool compsec_skillcheck::attempt()
+{
+    g->u.practice(skill, 5 + diff * 2, diff + 2);
+
+    int player_roll = g->u.skillLevel(skill);
+    if (g->u.int_cur < 8 && one_in(2))
+    {
+        player_roll -= rng(0, 8 - g->u.int_cur);
+    }
+    else if (g->u.int_cur > 8 && one_in(3))
+    {
+        player_roll += rng(0, g->u.int_cur - 8);
+    }
+
+    return (dice(player_roll, 6) >= dice(diff, 6));
+}
+
+std::string compsec_skillcheck::save()
+{
+    std::stringstream data;
+    data << "skill " << skill << " " << diff << " ";
+    return data.str();
+}
+
+compsec_pass_or_hack::compsec_pass_or_hack(std::stringstream& stream)
+{
+    stream >> pass >> diff;
+}
+
+compsec_pass_or_hack::compsec_pass_or_hack(JsonObject& jo)
+{
+    pass = jo.get_string("password");
+    diff = jo.get_int("difficulty");
+}
+
+bool compsec_pass_or_hack::attempt()
+{
+    if(c->query_bool("This computer is password protected.  Attempt to hack?")){
+        g->u.practice("computer", 5 + diff * 2, diff + 2);
+
+        int player_roll = g->u.skillLevel("computer");
+        if (g->u.int_cur < 8 && one_in(2))
+        {
+            player_roll -= rng(0, 8 - g->u.int_cur);
+        }
+        else if (g->u.int_cur > 8 && one_in(3))
+        {
+            player_roll += rng(0, g->u.int_cur - 8);
+        }
+
+        return (dice(player_roll, 6) >= dice(diff, 6));
+    }
+
+    std::string input = string_input_popup(_("Enter Password"), 256);
+    return (input == pass);
+}
+
+std::string compsec_pass_or_hack::save()
+{
+    std::stringstream data;
+    data << "psh " << pass << " " << diff << " ";
+    return data.str();
+}
+
 compsec_trait::compsec_trait(std::stringstream& stream)
 {
     stream >> t;

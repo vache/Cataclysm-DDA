@@ -93,13 +93,39 @@ public:
     void set_computer(computer* comp){c=comp;}
 };
 
+class compsec_skillcheck : public compsec
+{
+public:
+    compsec_skillcheck(std::string tocheck, int difficulty) : skill(tocheck), diff(difficulty){}
+    compsec_skillcheck(std::stringstream& stream);
+    compsec_skillcheck(JsonObject& jo);
+    ~compsec_skillcheck(){}
+    bool attempt();
+    std::string save();
+    std::string skill;
+    int diff;
+};
+
+class compsec_pass_or_hack : public compsec
+{
+public:
+    compsec_pass_or_hack(std::string password, int difficulty) : pass(password), diff(difficulty){}
+    compsec_pass_or_hack(std::stringstream& stream);
+    compsec_pass_or_hack(JsonObject& jo);
+    ~compsec_pass_or_hack(){}
+    bool attempt();
+    std::string save();
+    std::string pass;
+    int diff;
+};
+
 class compsec_trait : public compsec
 {
 public:
     compsec_trait(std::string trait) : t(trait){}
     compsec_trait(std::stringstream& stream);
     compsec_trait(JsonObject& jo);
-    ~compsec(){}
+    ~compsec_trait(){}
     bool attempt();
     std::string save();
     std::string t;
