@@ -384,11 +384,11 @@ class map
  int bash_strength(const int x, const int y);
  /** Returns min_str of the furniture or terrain at x,y */
  int bash_resistance(const int x, const int y);
- /** Returns a success rating from -1 to 10 for a given tile based on a set strength, used for AI movement planning 
+ /** Returns a success rating from -1 to 10 for a given tile based on a set strength, used for AI movement planning
   *  Values roughly correspond to 10% increment chances of success on a given bash, rounded down. -1 means the square is not bashable */
  int bash_rating(const int str, const int x, const int y);
- 
- /** Generates rubble at the given location, if overwrite is true it just writes on top of what currently exists 
+
+ /** Generates rubble at the given location, if overwrite is true it just writes on top of what currently exists
   *  floor_type is only used if there is a non-bashable wall at the location or with overwrite = true */
  void make_rubble(const int x, const int y, furn_id rubble_type = f_rubble, bool items = false,
                     ter_id floor_type = t_dirt, bool overwrite = false);
@@ -555,6 +555,7 @@ void add_corpse(int x, int y);
  void place_toilet(const int x, const int y, const int charges = 6 * 4); // 6 liters at 250 ml per charge
  void place_vending(int x, int y, std::string type);
  int place_npc(int x, int y, std::string type);
+
  int place_items(items_location loc, const int chance, const int x1, const int y1,
                   const int x2, const int y2, bool ongrass, const int turn, bool rand = true);
  int put_items_from_loc(items_location loc, const int x, const int y, const int turn = 0);
@@ -573,6 +574,7 @@ void add_corpse(int x, int y);
                       const int init_veh_fuel = -1, const int init_veh_status = -1,
                       const bool merge_wrecks = true);
  computer* add_computer(const int x, const int y, std::string name, const int security);
+ void add_computer(int x, int y, computer c);
  float light_transparency(const int x, const int y) const;
  void build_map_cache();
  lit_level light_at(int dx, int dy); // Assumes 0,0 is light map center

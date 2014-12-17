@@ -1032,7 +1032,7 @@ static bool unserialize_legacy(std::ifstream & fin ) {
         // string ID. legacy_ter_id translates the saved ints to a string, and like the
         // current loader, instead of doing string lookups while parsing a potentially huge
         // amount of tiles, we do so beforehand.
-        
+
         // Ditto for furniture
         std::map<int, int> furn_key;
         std::string fstr;
@@ -1101,12 +1101,18 @@ static bool unserialize_legacy(std::ifstream & fin ) {
           if (turndif < 0)
            turndif = 0;
         // Load terrain
+          int compx = -1;
+          int compy = -1;
           for( size_t j = 0; j < SEEY; j++) {
            for( size_t i = 0; i < SEEX; i++) {
             int tmpter;
             fin >> tmpter;
             tmpter = ter_key[tmpter];
             sm->ter[i][j] = ter_id(tmpter);
+            if(ter_id(tmpter) == t_console){
+                compx = i;
+                compy = j;
+            }
             sm->set_furn(i, j, f_null);
             sm->itm[i][j].clear();
             sm->set_trap(i, j, tr_null);
@@ -1129,6 +1135,7 @@ static bool unserialize_legacy(std::ifstream & fin ) {
            }
           }
         // Load items and traps and fields and spawn points and vehicles
+        // "computers":"Evac_shelter_computer 0 -1 1 Emergency_Message 25 0 0 "
           std::string string_identifier;
           do {
            fin >> string_identifier; // "----" indicates end of this submap
@@ -1177,7 +1184,11 @@ static bool unserialize_legacy(std::ifstream & fin ) {
             sm->vehicles.push_back(veh);
            } else if (string_identifier == "c") {
             getline(fin, databuff);
-            sm->comp.load_data(databuff);
+            if(compx != -1 && compy != -1){
+                computer c;
+                c.load_data(databuff);
+                sm->computers[point(compx, compy)] = c;
+            }
            } else if (string_identifier == "B") {
             getline(fin, databuff);
             sm->camp.load_data(databuff);
@@ -1360,13 +1371,18 @@ static void unserialize_legacy_submaps( std::ifstream &fin, const int num_submap
         }
 
         // Load terrain
+        int compx = -1;
+        int compy = -1;
         for( size_t j = 0; j < SEEY; j++) {
             for( size_t i = 0; i < SEEX; i++) {
                 int tmpter;
                 fin >> tmpter;
                 tmpter = ter_key[tmpter];
                 sm->ter[i][j] = ter_id(tmpter);
-
+                if(ter_id(tmpter) == t_console){
+                    compx = i;
+                    compy = j;
+                }
                 sm->set_furn(i, j, f_null);
                 sm->itm[i][j].clear();
                 sm->set_trap(i, j, tr_null);
@@ -1451,7 +1467,12 @@ static void unserialize_legacy_submaps( std::ifstream &fin, const int num_submap
                 sm->vehicles.push_back(veh);
             } else if (string_identifier == "c") {
                 getline(fin, databuff);
-                sm->comp.load_data(databuff);
+                if (compx != -1 && compy != -1)
+                {
+                    computer c;
+                    c.load_data(databuff);
+                    sm->computers[point(compx, compy)] = c;
+                }
             } else if (string_identifier == "B") {
                 getline(fin, databuff);
                 sm->camp.load_data(databuff);

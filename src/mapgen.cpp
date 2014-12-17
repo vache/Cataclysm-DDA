@@ -590,7 +590,7 @@ void mapgen_function_json::setup_place_special(JsonArray &parray )
             parray.throw_error("placing other specials is not supported yet"); return;
         }
         if ( ! jsi.has_member("x") || ! jsi.has_member("y") ) {
-            parray.throw_error("  place_specials: syntax error. Must be at least: { \"id\": \"(itype)\", \"x\": int, \"y\": int }");
+            parray.throw_error("  place_specials: syntax error. Must be at least: { \"type\": \"(special type)\", \"x\": int, \"y\": int }");
         }
         if ( ! load_jmapgen_int(jsi, "x", tmp_x.val, tmp_x.valmax) ) {
             jsi.throw_error("  place_specials: invalid value for 'x'");
@@ -602,6 +602,39 @@ void mapgen_function_json::setup_place_special(JsonArray &parray )
         jmapgen_place_special new_special( tmp_x, tmp_y, tmpop, tmp_amt, tmp_type );
         place_specials.push_back( new_special );
         tmpval = "";
+    }
+}
+
+void mapgen_function_json::setup_place_computers(JsonArray &parray ) {
+    int x = -1;
+    int y = -1;
+    while(parray.has_more()){
+        computer c;
+        JsonObject jso = parray.next_object();
+
+        c.name = jso.get_string("name", DEFAULT_COMPUTER_NAME);
+        if (!jso.has_int("x") || !jso.has_int("y")){
+            jso.throw_error("  place_computers: syntax error. Must include: \"x\": int, \"y\": int");
+        } else {
+            x = jso.get_int("x");
+            y = jso.get_int("y");
+            c.compx = x;
+            c.compy = y;
+        }
+        c.prompt = jso.get_string("prompt", DEFAULT_COMPUTER_PROMPT);
+
+        if(!jso.has_array("options")){
+            jso.throw_error("  place_computers: syntax error.  Must include: \"options\" array");
+        } else {
+            JsonArray option_array = jso.get_array("options");
+
+            while(option_array.has_more()){
+                JsonObject option_object = option_array.next_object();
+                c.add_compopt(compopt(option_object));
+            }
+        }
+        jmapgen_place_computer jmgpc(x, y, c);
+        place_computers.push_back(jmgpc);
     }
 }
 
@@ -798,6 +831,15 @@ bool mapgen_function_json::setup() {
                 throw err;
             }
        }
+       if ( jo.has_array("place_computers") ) {
+            parray = jo.get_array("place_computers");
+            try {
+                setup_place_computers( parray );
+            } catch (std::string smerr) {
+                err = string_format("Bad JSON mapgen place_computer array, discarding:\n  %s\n", smerr.c_str() );
+                throw err;
+            }
+       }
 
 #ifdef LUA
        // silently ignore if unsupported in build
@@ -986,6 +1028,10 @@ bool jmapgen_setmap::apply( map *m ) {
     return true;
 }
 
+void jmapgen_place_computer::apply( map *m ){
+    m->add_computer(x.get(), y.get(), c);
+}
+
 void mapgen_lua(map * m, oter_id id, mapgendata md, int t, float d, const std::string & scr);
 /*
  * Apply mapgen as per a derived-from-json recipe; in theory fast, but not very versatile
@@ -1005,6 +1051,9 @@ void mapgen_function_json::generate( map *m, oter_id terrain_type, mapgendata md
     }
     for( size_t i = 0; i < place_specials.size(); ++i ) {
         place_specials[i].apply( m );
+    }
+    for( size_t i = 0; i < place_computers.size(); ++i ) {
+        place_computers[i].apply( m );
     }
     for( size_t i = 0; i < setmap_points.size(); ++i ) {
         setmap_points[i].apply( m );
@@ -7356,7 +7405,7 @@ bb|,,,,,,,,,,,,,,,,,,|##\n\
                         } else {
                             add_spawn("mon_zombie_brute", rng(0, 1), i, j);
                         }
-                    }					
+                    }
                 }
             }
             if (t_west == "prison_b_entrance") {
@@ -11329,9 +11378,18 @@ vehicle *map::add_vehicle_to_map(vehicle *veh, const int x, const int y, const b
 computer *map::add_computer(int x, int y, std::string name, int security)
 {
     ter_set(x, y, t_console); // TODO: Turn this off?
-    submap *place_on_submap = get_submap_at(x, y);
-    place_on_submap->comp = computer(name, security);
-    return &(place_on_submap->comp);
+    int lx, ly;
+    submap *place_on_submap = get_submap_at(x, y, lx, ly);
+    place_on_submap->computers[point(lx,ly)] = computer(name, security);
+    return &(place_on_submap->computers[point(lx,ly)]);
+}
+
+void map::add_computer(int x, int y, computer c)
+{
+    ter_set(x, y, t_console); // TODO: Turn this off?
+    int lx, ly;
+    submap *place_on_submap = get_submap_at(x, y, lx, ly);
+    place_on_submap->computers[point(lx,ly)] = c;
 }
 
 /**
@@ -11392,7 +11450,7 @@ void map::rotate(int turns)
     std::string signage_rot[SEEX * 2][SEEY * 2];
     std::vector<spawn_point> sprot[MAPSIZE * MAPSIZE];
     std::vector<vehicle*> vehrot[MAPSIZE * MAPSIZE];
-    computer tmpcomp;
+    std::map<point, computer> tmpcomp;
 
     //Rotate terrain first
     for (int old_x = 0; old_x < SEEX * 2; old_x++) {
@@ -11418,6 +11476,8 @@ void map::rotate(int turns)
             itrot [old_x][old_y] = i_at(new_x, new_y);
             traprot[old_x][old_y] = tr_at(new_x, new_y);
             signage_rot[old_x][old_y] = get_signage(new_x, new_y);
+            // TODO finish this
+            //tmpcomp[point(old_x, old_y)] =
             i_clear(new_x, new_y);
         }
     }
@@ -11466,30 +11526,33 @@ void map::rotate(int turns)
     }
 
     //Then computers
+    // TODO
+    // during mapgen, my_MAPSIZE = 2
+    // Be sure to change coords of individual computers
     switch (turns) {
     case 1:
-        tmpcomp = grid[0]->comp;
-        grid[0]->comp = grid[my_MAPSIZE]->comp;
-        grid[my_MAPSIZE]->comp = grid[my_MAPSIZE + 1]->comp;
-        grid[my_MAPSIZE + 1]->comp = grid[1]->comp;
-        grid[1]->comp = tmpcomp;
+        tmpcomp = grid[0]->computers;
+        grid[0]->computers = grid[my_MAPSIZE]->computers;
+        grid[my_MAPSIZE]->computers = grid[my_MAPSIZE + 1]->computers;
+        grid[my_MAPSIZE + 1]->computers = grid[1]->computers;
+        grid[1]->computers = tmpcomp;
         break;
 
     case 2:
-        tmpcomp = grid[0]->comp;
-        grid[0]->comp = grid[my_MAPSIZE + 1]->comp;
-        grid[my_MAPSIZE + 1]->comp = tmpcomp;
-        tmpcomp = grid[1]->comp;
-        grid[1]->comp = grid[my_MAPSIZE]->comp;
-        grid[my_MAPSIZE]->comp = tmpcomp;
+        tmpcomp = grid[0]->computers;
+        grid[0]->computers = grid[my_MAPSIZE + 1]->computers;
+        grid[my_MAPSIZE + 1]->computers = tmpcomp;
+        tmpcomp = grid[1]->computers;
+        grid[1]->computers = grid[my_MAPSIZE]->computers;
+        grid[my_MAPSIZE]->computers = tmpcomp;
         break;
 
     case 3:
-        tmpcomp = grid[0]->comp;
-        grid[0]->comp = grid[1]->comp;
-        grid[1]->comp = grid[my_MAPSIZE + 1]->comp;
-        grid[my_MAPSIZE + 1]->comp = grid[my_MAPSIZE]->comp;
-        grid[my_MAPSIZE]->comp = tmpcomp;
+        tmpcomp = grid[0]->computers;
+        grid[0]->computers = grid[1]->computers;
+        grid[1]->computers = grid[my_MAPSIZE + 1]->computers;
+        grid[my_MAPSIZE + 1]->computers = grid[my_MAPSIZE]->computers;
+        grid[my_MAPSIZE]->computers = tmpcomp;
         break;
     }
 

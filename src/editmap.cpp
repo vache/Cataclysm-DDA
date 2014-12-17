@@ -1686,13 +1686,13 @@ int editmap::mapgen_preview( real_coords &tc, uimenu &gmenu )
                             for (int x = 0; x < SEEX; ++x) {
                                 for (int y = 0; y < SEEY; ++y) {
                                     destsm->cosmetics[x][y] = srcsm->cosmetics[x][y];
+                                    destsm->computers = srcsm->computers;
                                 }
                             }
 
                             destsm->active_item_count = srcsm->active_item_count; // various misc variables
                             destsm->temperature = srcsm->temperature;
                             destsm->turn_last_touched = int(calendar::turn);
-                            destsm->comp = srcsm->comp;
                             destsm->camp = srcsm->camp;
 
                             if ( spawns_todo > 0 ) {                              // trigger spawnpoints

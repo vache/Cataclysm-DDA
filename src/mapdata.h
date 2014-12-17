@@ -409,6 +409,7 @@ struct submap {
     ter_id             ter[SEEX][SEEY];  // Terrain on each square
     std::vector<item>  itm[SEEX][SEEY];  // Items on each square
     furn_id            frn[SEEX][SEEY];  // Furniture on each square
+    std::map<point, computer> computers;
 
     // TODO: make trp private once the horrible hack known as editmap is resolved
     trap_id            trp[SEEX][SEEY];  // Trap on each square
@@ -427,7 +428,7 @@ struct submap {
      * deleted.
      */
     std::vector<vehicle*> vehicles;
-    computer comp;
+    //computer comp;
     basecamp camp;  // only allowing one basecamp per submap
 
     submap();

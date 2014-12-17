@@ -7,6 +7,7 @@
 #include <string>
 
 #define DEFAULT_COMPUTER_NAME ""
+#define DEFAULT_COMPUTER_PROMPT "Root Menu"
 
 class game;
 class player;
@@ -68,6 +69,12 @@ enum computer_failure {
     NUM_COMPUTER_FAILURES
 };
 
+enum compsec_result {
+    COMPSEC_ABORT = 0,
+    COMPSEC_FAIL = 1,
+    COMPSEC_PASS = 2
+};
+
 struct computer_option {
     std::string name;
     computer_action action;
@@ -103,6 +110,19 @@ public:
     bool attempt();
     std::string save();
     std::string skill;
+    int diff;
+};
+
+class compsec_trait_or_hack : public compsec
+{
+public:
+    compsec_trait_or_hack(std::string trait, int difficulty) : t(trait), diff(difficulty){}
+    compsec_trait_or_hack(std::stringstream& stream);
+    compsec_trait_or_hack(JsonObject& jo);
+    ~compsec_trait_or_hack(){}
+    bool attempt();
+    std::string save();
+    std::string t;
     int diff;
 };
 
@@ -206,7 +226,7 @@ protected:
 public:
     virtual ~compact(){}
     virtual void go() = 0;
-    virtual std::string save()  = 0;
+    virtual std::string save() = 0;
     void set_computer(computer* comp){c=comp;}
 };
 
@@ -472,7 +492,7 @@ public:
 class compopt
 {
 public:
-    compopt(std::string msg) : prompt(msg) {}
+    compopt(std::string msg) : prompt(msg), c(NULL) {}
     compopt(std::stringstream& stream);
     compopt(JsonObject& jo);
     ~compopt();
@@ -511,14 +531,17 @@ class computer
         void add_failure(computer_failure failure);
         // Basic usage
         void shutdown_terminal(); // Shutdown (free w_terminal, etc)
-        void use();
+        void use(int x, int y);
         bool hack_attempt(player *p, int Security = -1);// -1 defaults to main security
         // Save/load
         std::string save_data();
         void load_data(std::string data);
 
         std::string name; // "Jon's Computer", "Lab 6E77-B Terminal Omega"
+        std::string prompt;
         int mission_id; // Linked to a mission?
+        int compx, usex;
+        int compy, usey;
 
         static void load_lab_note(JsonObject &jsobj);
         static void clear_lab_notes();

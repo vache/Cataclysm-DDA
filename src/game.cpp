@@ -7167,7 +7167,7 @@ void game::use_computer(int x, int y)
         return;
     }
 
-    used->use();
+    used->use(x, y);
 
     refresh_all();
 }

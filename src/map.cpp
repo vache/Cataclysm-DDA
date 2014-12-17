@@ -3792,15 +3792,17 @@ void map::remove_field(const int x, const int y, const field_id field_to_remove)
 
 computer* map::computer_at(const int x, const int y)
 {
- if (!INBOUNDS(x, y))
-  return NULL;
+    if (!INBOUNDS(x, y))
+        return NULL;
 
- submap * const current_submap = get_submap_at(x, y);
+    int lx, ly;
+    submap * const current_submap = get_submap_at(x, y, lx, ly);
 
- if (current_submap->comp.name == "") {
-  return NULL;
- }
- return &(current_submap->comp);
+    if(current_submap->computers.count(point(lx, ly)) == 0){
+        return NULL;
+    }
+
+    return &(current_submap->computers[point(lx, ly)]);
 }
 
 bool map::allow_camp(const int x, const int y, const int radius)
@@ -4743,7 +4745,7 @@ void map::loadn(const int worldx, const int worldy, const int worldz,
       ter_id ter = tmpsub->ter[x][y];
       //if the fruit-bearing season of the already harvested terrain has passed, make it harvestable again
       if ((ter) && (terlist[ter].has_flag(TFLAG_HARVESTED))){
-        if ((terlist[ter].harvest_season != calendar::turn.get_season()) || 
+        if ((terlist[ter].harvest_season != calendar::turn.get_season()) ||
         (calendar::turn - tmpsub->turn_last_touched > calendar::season_length()*14400)){
           tmpsub->set_ter(x, y, terfind(terlist[ter].transforms_into));
         }

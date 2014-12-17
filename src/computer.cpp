@@ -71,6 +71,49 @@ std::string compsec_skillcheck::save()
     return data.str();
 }
 
+
+compsec_trait_or_hack::compsec_trait_or_hack(std::stringstream& stream)
+{
+    stream >> t >> diff;
+}
+
+compsec_trait_or_hack::compsec_trait_or_hack(JsonObject& jo)
+{
+    t = jo.get_string("trait");
+    diff = jo.get_int("difficulty");
+}
+
+bool compsec_trait_or_hack::attempt()
+{
+    if(g->u.has_trait(t)){
+        return true;
+    }
+
+    if(c->query_bool("This computer is password protected.  Attempt to hack?")){
+        g->u.practice("computer", 5 + diff * 2, diff + 2);
+
+        int player_roll = g->u.skillLevel("computer");
+        if (g->u.int_cur < 8 && one_in(2))
+        {
+            player_roll -= rng(0, 8 - g->u.int_cur);
+        }
+        else if (g->u.int_cur > 8 && one_in(3))
+        {
+            player_roll += rng(0, g->u.int_cur - 8);
+        }
+
+        return (dice(player_roll, 6) >= dice(diff, 6));
+    }
+    return false;
+}
+
+std::string compsec_trait_or_hack::save()
+{
+    std::stringstream data;
+    data << "trh " << t << " " << diff << " ";
+    return data.str();
+}
+
 compsec_pass_or_hack::compsec_pass_or_hack(std::stringstream& stream)
 {
     stream >> pass >> diff;
@@ -198,13 +241,14 @@ compsec_item::compsec_item(std::stringstream &stream)
 compsec_item::compsec_item(JsonObject& jo)
 {
     it = jo.get_string("item");
+    num = jo.get_int("count");
 }
 
 bool compsec_item::attempt()
 {
     if(g->u.has_amount(it, num))
     {
-        g->u.use_amount(it, num);
+        //g->u.use_amount(it, num);
         return true;
     }
     else
@@ -339,15 +383,17 @@ compact_chter::compact_chter(std::stringstream &stream)
 
 compact_chter::compact_chter(JsonObject& jo)
 {
-    ter = jo.get_string("terrain");
-    terx = jo.get_array("loc").next_int();
-    tery = jo.get_array("loc").next_int();
+    terx = jo.get_int("x");
+    tery = jo.get_int("y");
+    ter = jo.get_string("ter");
 }
 
 void compact_chter::go()
 {
-    //g->m.ter_set(c->compx + terx, c->compy + tery, ter);
-    g->m.ter_set(terx, tery, ter);
+     g->m.ter_set(c->usex + c->compx + terx, c->usey + c->compy + tery, ter);
+    debugmsg("compact_chter params: usex: %d, usey %d, compx: %d, compy: %d, terx: %d, tery: %d", c->usex, c->usey, c->compx, c->compy, terx, tery);
+    debugmsg("%s", c->name.c_str());
+    //g->m.ter_set(terx, tery, ter);
 }
 
 std::string compact_chter::save()
@@ -1179,7 +1225,7 @@ compopt::compopt(JsonObject& jo)
 
         if(type == "pass"){
             add_security(new compsec_pass(secObject));
-        } else if(type == "item"){
+        } else if(type == "has_item"){
             add_security(new compsec_item(secObject));
         } else if(type == "hack"){
             add_security(new compsec_hack(secObject));
@@ -1187,6 +1233,8 @@ compopt::compopt(JsonObject& jo)
             add_security(new compsec_itemat(secObject));
         } else if(type == "contat"){
             add_security(new compsec_containerat(secObject));
+        } else {
+            debugmsg("Computer security type not found %s", type.c_str());
         }
     }
 
@@ -1195,7 +1243,7 @@ compopt::compopt(JsonObject& jo)
         JsonObject successObject = successArray.next_object();
         std::string type = successObject.get_string("action");
 
-        if(type == "cht"){
+        if(type == "ch_ter"){
             add_action(new compact_chter(successObject));
         } else if(type == "msg"){
             add_action(new compact_msg(successObject));
@@ -1223,6 +1271,10 @@ compopt::compopt(JsonObject& jo)
             add_action(new compact_remfield(successObject));
         } else if(type == "rmt"){
             add_action(new compact_remtrap(successObject));
+        } else if(type == "shutdown"){
+            // todo
+        } else {
+            debugmsg("Computer action type not found %s", type.c_str());
         }
     }
 
@@ -1231,7 +1283,7 @@ compopt::compopt(JsonObject& jo)
         JsonObject failureObject = failureArray.next_object();
         std::string type = failureObject.get_string("action");
 
-        if(type == "cht"){
+        if(type == "ch_ter"){
             add_failure(new compact_chter(failureObject));
         } else if(type == "msg"){
             add_failure(new compact_msg(failureObject));
@@ -1243,7 +1295,7 @@ compopt::compopt(JsonObject& jo)
             add_failure(new compact_mon(failureObject));
         } else if(type == "chz"){
             add_failure(new compact_chlvl(failureObject));
-        } else if(type == "snd"){
+        } else if(type == "sound"){
             add_failure(new compact_noise(failureObject));
         } else if(type == "kil"){
             add_failure(new compact_killmon(failureObject));
@@ -1259,43 +1311,42 @@ compopt::compopt(JsonObject& jo)
             add_failure(new compact_remfield(failureObject));
         } else if(type == "rmt"){
             add_failure(new compact_remtrap(failureObject));
+        } else if(type == "shutdown"){
+            // todo
+        } else {
+            debugmsg("Computer action type not found %s", type.c_str());
         }
     }
 }
 
 compopt::~compopt()
 {
-    for(auto it = actions.begin(); it != actions.end(); ++it){
-        delete *it;
-    }
-    for(auto it = failures.begin(); it != failures.end(); ++it){
-        delete *it;
-    }
-    for(auto it = security.begin(); it != security.end(); ++it){
-        delete *it;
-    }
+//    for(auto it = actions.begin(); it != actions.end(); ++it){
+//        delete *it;
+//    }
+//    for(auto it = failures.begin(); it != failures.end(); ++it){
+//        delete *it;
+//    }
+//    for(auto it = security.begin(); it != security.end(); ++it){
+//        delete *it;
+//    }
 }
 
 void compopt::go()
 {
-    if(security.size() > 0)
-    {
+    if(security.size() > 0){
         int s = security.size();
         bool succeed = true;
-        for(int i = 0; i < s; i++)
-        {
+        for(int i = 0; i < s; i++){
             succeed = succeed && security[i]->attempt();
-            if(!succeed)
-            {
+            if(!succeed){
                 break;
             }
         }
 
-        if(!succeed)
-        {
+        if(!succeed){
             int f = failures.size();
-            for(int i = 0; i < f; i++)
-            {
+            for(int i = 0; i < f; i++){
                 failures[i]->go();
             }
             return;
@@ -1303,8 +1354,7 @@ void compopt::go()
     }
 
     int a = actions.size();
-    for(int i = 0; i < a; i++)
-    {
+    for(int i = 0; i < a; i++){
         actions[i]->go();
     }
 }
@@ -1328,18 +1378,15 @@ std::string compopt::save()
 {
     std::stringstream data;
     data << helper::space_to_underscore(prompt) << " " << security.size() << " ";
-    for(int i = 0; i < security.size(); i++)
-    {
+    for(int i = 0; i < security.size(); i++){
         data << security[i]->save();
     }
     data << actions.size() << " ";
-    for(int i = 0; i < actions.size(); i++)
-    {
+    for(int i = 0; i < actions.size(); i++){
         data << actions[i]->save();
     }
     data << failures.size() << " ";
-    for(int i = 0; i < failures.size(); i++)
-    {
+    for(int i = 0; i < failures.size(); i++){
         data << failures[i]->save();
     }
     return data.str();
@@ -1348,16 +1395,13 @@ std::string compopt::save()
 void compopt::set_computer(computer *comp)
 {
     c = comp;
-    for(int i = 0; i < security.size(); i++)
-    {
+    for(int i = 0; i < security.size(); i++){
         security[i]->set_computer(comp);
     }
-    for(int i = 0; i < actions.size(); i++)
-    {
+    for(int i = 0; i < actions.size(); i++){
         actions[i]->set_computer(comp);
     }
-    for(int i = 0; i < failures.size(); i++)
-    {
+    for(int i = 0; i < failures.size(); i++){
         failures[i]->set_computer(comp);
     }
 }
@@ -1368,6 +1412,10 @@ computer::computer(): name(DEFAULT_COMPUTER_NAME)
     w_terminal = NULL;
     w_border = NULL;
     mission_id = -1;
+    compx = INT_MIN;
+    compy = INT_MIN;
+    usex = INT_MIN;
+    usey = INT_MIN;
 }
 
 computer::computer(std::string Name, int Security): name(Name)
@@ -1376,6 +1424,10 @@ computer::computer(std::string Name, int Security): name(Name)
     w_terminal = NULL;
     w_border = NULL;
     mission_id = -1;
+    compx = INT_MIN;
+    compy = INT_MIN;
+    usex = INT_MIN;
+    usey = INT_MIN;
 }
 
 computer::~computer()
@@ -1395,6 +1447,10 @@ computer &computer::operator=(const computer &rhs)
     mission_id = rhs.mission_id;
     options = rhs.options;
     failures = rhs.failures;
+    compopts = rhs.compopts;
+    prompt = rhs.prompt;
+    compx = rhs.compx;
+    compy = rhs.compy;
     w_terminal = NULL;
     w_border = NULL;
     return *this;
@@ -1436,8 +1492,13 @@ void computer::add_compopt(compopt option)
     this->compopts.push_back(option);
 }
 
-void computer::use()
+void computer::use(int x, int y)
 {
+    usex = x;
+    usey = y;
+
+    debugmsg("using computer at (%d, %d)", x, y);
+
     if (w_border == NULL) {
         w_border = newwin(FULL_SCREEN_HEIGHT, FULL_SCREEN_WIDTH,
                           (TERMY > FULL_SCREEN_HEIGHT) ? (TERMY - FULL_SCREEN_HEIGHT) / 2 : 0,
@@ -1540,7 +1601,7 @@ void computer::use()
         for (bool InUse = true; InUse; )
         {
             print_newline();
-            print_line("%s - %s", name.c_str(), _("Root Menu"));
+            print_line("%s - %s", name.c_str(), prompt.c_str());
             for (int i = 0; i < compopts.size(); i++)
             {
                 print_line("%d - %s", i + 1, compopts[i].prompt.c_str());
