@@ -32,6 +32,13 @@ ex:
 3......
 4..t...
 5......
+
+usex, usey are coordinates of computer relative to reality bubble
+compx, compy are coordinates of computer relative to individual tile
+terx, tery are coordinates of target relative to individual tile
+reality bubble coordinates of target are:
+targetx = usex - compy + terx
+targety = usey - compy + tery
 */
 
 compsec_skillcheck::compsec_skillcheck(std::stringstream& stream)
@@ -272,14 +279,15 @@ compsec_itemat::compsec_itemat(std::stringstream &stream)
 compsec_itemat::compsec_itemat(JsonObject& jo)
 {
     it = jo.get_string("item");
-    itemx = jo.get_array("loc").next_int();
-    itemy = jo.get_array("loc").next_int();
+    itemx = jo.get_int("x");
+    itemy = jo.get_int("y");
 }
 
 bool compsec_itemat::attempt()
 {
-    //std::vector<item> items = g->m.i_at(c->compx + itemx, c->compy + itemy);
-    std::vector<item> items = g->m.i_at(itemx, itemy);
+    int x = c->usex - c->compx + itemx;
+    int y = c->usey - c->compy + itemy;
+    std::vector<item> items = g->m.i_at(x, y);
 
     for(int i = 0; i < items.size(); i++)
     {
@@ -309,8 +317,8 @@ compsec_containerat::compsec_containerat(std::stringstream &stream)
 
 compsec_containerat::compsec_containerat(JsonObject& jo)
 {
-    itemx = jo.get_array("loc").next_int();
-    itemy = jo.get_array("loc").next_int();
+    itemx = jo.get_int("x");
+    itemy = jo.get_int("y");
     wt = jo.get_bool("watertight");
     soft = jo.get_bool("software");
     empty = jo.get_bool("empty");
@@ -326,8 +334,8 @@ bool compsec_containerat::attempt()
     // req. contents & item wrong contents
 
     // if watertight, ignore software, vice versa
-    int x = itemx;// + c->compx;
-    int y = itemy;// + c->compy;
+    int x = c->usex - c->compx + itemx;
+    int y = c->usey - c->compy + itemy;
     if(g->m.i_at(x, y).size() == 0)
     {
         return false;
@@ -390,10 +398,9 @@ compact_chter::compact_chter(JsonObject& jo)
 
 void compact_chter::go()
 {
-     g->m.ter_set(c->usex + c->compx + terx, c->usey + c->compy + tery, ter);
-    debugmsg("compact_chter params: usex: %d, usey %d, compx: %d, compy: %d, terx: %d, tery: %d", c->usex, c->usey, c->compx, c->compy, terx, tery);
-    debugmsg("%s", c->name.c_str());
-    //g->m.ter_set(terx, tery, ter);
+    int x = c->usex - c->compx + terx;
+    int y = c->usey - c->compy + tery;
+    g->m.ter_set(x, y, ter);
 }
 
 std::string compact_chter::save()
@@ -463,9 +470,8 @@ compact_noise::compact_noise(JsonObject &jo)
 
 void compact_noise::go()
 {
-    // maybe dont use the users position?
-    // use consoles, or specify location
-    g->sound(g->u.posx, g->u.posy, vol, desc);
+    // use consoles, or specify location?
+    g->sound(c->compx, c->compy, vol, desc);
 }
 
 std::string compact_noise::save()
@@ -483,15 +489,17 @@ compact_mon::compact_mon(std::stringstream &stream)
 compact_mon::compact_mon(JsonObject &jo)
 {
     mon = jo.get_string("monster");
-    monx = jo.get_array("loc").next_int();
-    mony = jo.get_array("loc").next_int();
+    monx = jo.get_int("x");
+    mony = jo.get_int("y");
 }
 
 void compact_mon::go()
 {
+    int x = c->usex - c->compx + monx;
+    int y = c->usey - c->compy + mony;
+
     monster newmon(GetMType(mon));
-    //newmon.spawn(c->compx + monx, c->compy + mony);
-    newmon.spawn(monx, mony);
+    newmon.spawn(x, y);
     g->add_zombie(newmon);
 }
 
@@ -504,26 +512,28 @@ std::string compact_mon::save()
 
 compact_item::compact_item(std::stringstream &stream)
 {
-    stream >> itemx >> itemy >> it;
+    stream >> itemx >> itemy >> it >> count;
 }
 
 compact_item::compact_item(JsonObject &jo)
 {
     it = jo.get_string("item");
-    itemx = jo.get_array("loc").next_int();
-    itemy = jo.get_array("loc").next_int();
+    itemx = jo.get_int("x");
+    itemy = jo.get_int("y");
+    count = jo.get_int("count");
 }
 
 void compact_item::go()
 {
-    //g->m.spawn_item(c->compx + itemx, c->compy + itemy, it, 0, 1);
-    g->m.spawn_item(itemx, itemy, it, 0, 1);
+    int x = c->usex - c->compx + itemx;
+    int y = c->usey - c->compy + itemy;
+    g->m.spawn_item(x, y, it);
 }
 
 std::string compact_item::save()
 {
     std::stringstream data;
-    data << "itm " << itemx << " " << itemy << " " << it << " ";
+    data << "itm " << itemx << " " << itemy << " " << it << " " << count << " ";
     return data.str();
 }
 
@@ -536,14 +546,15 @@ compact_fill::compact_fill(JsonObject &jo)
 {
     it = jo.get_string("item");
     amt = jo.get_int("amount");
-    itemx = jo.get_array("loc").next_int();
-    itemy = jo.get_array("loc").next_int();
+    itemx = jo.get_int("x");
+    itemy = jo.get_int("y");
 }
 
 void compact_fill::go()
 {
-    //item *container = &(g->m.i_at(c->compx + itemx, c->compy + itemy)[0]);
-    item *container = &(g->m.i_at(itemx, itemy)[0]);
+    int x = c->usex - c->compx + itemx;
+    int y = c->usey - c->compy + itemy;
+    item *container = &(g->m.i_at(x, y)[0]);
     item contents(it, calendar::turn);
 
     if(contents.is_software())
@@ -661,14 +672,16 @@ compact_trap::compact_trap(JsonObject &jo)
         t = tr_null;
     }
 
-    trapx = jo.get_array("loc").next_int();
-    trapy = jo.get_array("loc").next_int();
+    trapx = jo.get_int("x");
+    trapy = jo.get_int("y");
 }
 
 void compact_trap::go()
 {
-    //g->m.add_trap(trapx+c->compx, trapy+c->compy, (trap_id)t);
-    g->m.add_trap(trapx, trapy, (trap_id)t);
+    int x = c->usex - c->compx + trapx;
+    int y = c->usey - c->compy + trapy;
+
+    g->m.add_trap(x, y, (trap_id)t);
 }
 
 std::string compact_trap::save()
@@ -685,14 +698,15 @@ compact_remtrap::compact_remtrap(std::stringstream &stream)
 
 compact_remtrap::compact_remtrap(JsonObject &jo)
 {
-    trapx = jo.get_array("loc").next_int();
-    trapy = jo.get_array("loc").next_int();
+    trapx = jo.get_int("x");
+    trapy = jo.get_int("y");
 }
 
 void compact_remtrap::go()
 {
-    //g->m.remove_trap(trapx + c->compx, trapy + c->compy);
-    g->m.remove_trap(trapx, trapy);
+    int x = c->usex - c->compx + trapx;
+    int y = c->usey - c->compy + trapy;
+    g->m.remove_trap(x, y);
 }
 
 std::string compact_remtrap::save()
@@ -711,13 +725,15 @@ compact_field::compact_field(JsonObject &jo)
 {
     f = field_from_ident(jo.get_string("field"));
     den = jo.get_int("density");
-    fieldx = jo.get_array("loc").next_int();
-    fieldy = jo.get_array("loc").next_int();
+    fieldx = jo.get_int("x");
+    fieldy = jo.get_int("y");
 }
 
 void compact_field::go()
 {
-    g->m.add_field(fieldx, fieldy, (field_id)f, den);
+    int x = c->usex - c->compx + fieldx;
+    int y = c->usey - c->compy + fieldy;
+    g->m.add_field(x, y, (field_id)f, den);
 }
 
 std::string compact_field::save()
@@ -735,15 +751,16 @@ compact_remfield::compact_remfield(std::stringstream &stream)
 compact_remfield::compact_remfield(JsonObject &jo)
 {
     f = field_from_ident(jo.get_string("field"));
-    fieldx = jo.get_array("loc").next_int();
-    fieldy = jo.get_array("loc").next_int();
+    fieldx = jo.get_int("x");
+    fieldy = jo.get_int("y");
 }
 
 
 void compact_remfield::go()
 {
-    //g->m.remove_field(fieldx + c->compx, fieldy + c->compy, (field_id)f);
-    g->m.remove_field(fieldx, fieldy, (field_id)f);
+    int x = c->usex - c->compx + fieldx;
+    int y = c->usey - c->compy + fieldy;
+    g->m.remove_field(x, y, (field_id)f);
 }
 
 std::string compact_remfield::save()
@@ -763,14 +780,15 @@ compact_exp::compact_exp(JsonObject &jo)
     pwr = jo.get_int("power");
     shrap = jo.get_int("shrapnel");
     fire = jo.get_bool("fiery");
-    expx = jo.get_array("loc").next_int();
-    expy = jo.get_array("loc").next_int();
+    expx = jo.get_int("x");
+    expy = jo.get_int("y");
 }
 
 void compact_exp::go()
 {
-    //g->explosion(expx+c->compx, expy+c->compx, pwr, shrap, fire);
-    g->explosion(expx, expy, pwr, shrap, fire);
+    int x = c->usex - c->compx + expx;
+    int y = c->usey - c->compy + expy;
+    g->explosion(x, y, pwr, shrap, fire);
 }
 
 std::string compact_exp::save()
@@ -818,11 +836,14 @@ compact_killmon::compact_killmon(JsonObject &jo)
 
 void compact_killmon::go()
 {
-    //for(int i = tlx + c->compx; i <= brx + c->compx; i++)
-    for(int i = tlx; i <= brx; i++)
+    int x1 = c->usex - c->compx + tlx;
+    int y1 = c->usey - c->compy + tly;
+    int x2 = c->usex - c->compx + brx;
+    int y2 = c->usey - c->compy + bry;
+
+    for(int i = x1; i <= x2; i++)
     {
-        //for(int j = tly + c->compy; j <= bry + c->compy; j++)
-        for(int j = tly; j <= bry; j++)
+        for(int j = y1; j <= y2; j++)
         {
             int mondex = g->mon_at(i, j);
             if(mondex != -1)
@@ -898,9 +919,9 @@ compact_event::compact_event(JsonObject &jo)
     type = jo.get_int("type");
     turn = jo.get_int("turn");
     fac = jo.get_int("faction", -1);
-    if(jo.has_array("loc")){
-        eventx = jo.get_array("loc").next_int();
-        eventy = jo.get_array("loc").next_int();
+    if(jo.has_int("x")){
+        eventx = jo.get_int("x");
+        eventy = jo.get_int("y");
     } else {
         eventx = INT_MIN;
         eventy = INT_MIN;
@@ -909,7 +930,9 @@ compact_event::compact_event(JsonObject &jo)
 
 void compact_event::go()
 {
-    g->add_event((event_type)type, calendar::turn + turn, fac, eventx, eventy);
+    int x = c->usex - c->compx + eventx;
+    int y = c->usey - c->compy + eventy;
+    g->add_event((event_type)type, calendar::turn + turn, fac, x, y);
 }
 
 std::string compact_event::save()
@@ -1497,8 +1520,6 @@ void computer::use(int x, int y)
     usex = x;
     usey = y;
 
-    debugmsg("using computer at (%d, %d)", x, y);
-
     if (w_border == NULL) {
         w_border = newwin(FULL_SCREEN_HEIGHT, FULL_SCREEN_WIDTH,
                           (TERMY > FULL_SCREEN_HEIGHT) ? (TERMY - FULL_SCREEN_HEIGHT) / 2 : 0,
@@ -1604,6 +1625,7 @@ void computer::use(int x, int y)
             print_line("%s - %s", name.c_str(), prompt.c_str());
             for (int i = 0; i < compopts.size(); i++)
             {
+                compopts[i].set_computer(this);
                 print_line("%d - %s", i + 1, compopts[i].prompt.c_str());
             }
             print_line("Q - %s", _("Quit and shut down"));

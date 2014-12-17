@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 
-#define DEFAULT_COMPUTER_NAME ""
+#define DEFAULT_COMPUTER_NAME "Workstation"
 #define DEFAULT_COMPUTER_PROMPT "Root Menu"
 
 class game;
@@ -298,7 +298,7 @@ public:
 class compact_item : public compact
 {
 public:
-    compact_item(int x, int y, std::string item) : itemx(x), itemy(y), it(item) {}
+    compact_item(int x, int y, std::string item, int quantity) : itemx(x), itemy(y), it(item), count(quantity) {}
     compact_item(std::stringstream& stream);
     compact_item(JsonObject& jo);
     ~compact_item(){}
@@ -307,6 +307,7 @@ public:
     int itemx;
     int itemy;
     std::string it;
+    int count;
 };
 
 class compact_fill : public compact
