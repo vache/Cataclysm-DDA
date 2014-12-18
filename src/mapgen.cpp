@@ -11529,6 +11529,7 @@ void map::rotate(int turns)
     // TODO
     // during mapgen, my_MAPSIZE = 2
     // Be sure to change coords of individual computers
+    // basic formula: rot1 (11-y, x), rot2 (11-x, 11-y), rot3 (y, 11-x)
     switch (turns) {
     case 1:
         tmpcomp = grid[0]->computers;

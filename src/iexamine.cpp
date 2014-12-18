@@ -11,6 +11,8 @@
 #include "helper.h"
 #include "uistate.h"
 #include "messages.h"
+#include "computer.h"
+#include "debug.h"
 #include <sstream>
 #include <algorithm>
 
@@ -900,7 +902,7 @@ void iexamine::door_peephole(player *p, map *m, int examx, int examy) {
         return;
     }
 
-    // Peek through the peephole, or open the door. 
+    // Peek through the peephole, or open the door.
     int choice = menu( true, _("Do what with the door?"),
                        _("Peek through peephole."), _("Open door."),
                        _("Cancel"), NULL );
@@ -2649,6 +2651,31 @@ void iexamine::pay_gas(player *p, map *m, const int examx, const int examy)
     }
 }
 
+void iexamine::console (player *p, map *m, const int examx, const int examy)
+{
+    if (p->has_trait("ILLITERATE")) {
+        add_msg(m_info, _("You can not read a computer screen!"));
+        return;
+    }
+
+    if (p->has_trait("HYPEROPIC") && !p->is_wearing("glasses_reading")
+        && !p->is_wearing("glasses_bifocal") && !p->has_effect("contacts")) {
+        add_msg(m_info, _("You'll need to put on reading glasses before you can see the screen."));
+        return;
+    }
+
+    computer *used = m->computer_at(examx, examy);
+
+    if (used == NULL) {
+        debugmsg("Tried to use computer at (%d, %d) - none there", examx, examy);
+        return;
+    }
+
+    used->use(examx, examy);
+
+    g->refresh_all();
+}
+
 /**
  * Given then name of one of the above functions, returns the matching function
  * pointer. If no match is found, defaults to iexamine::none but prints out a
@@ -2821,6 +2848,9 @@ void (iexamine::*iexamine_function_from_string(std::string function_name))(playe
     }
     if ("pay_gas" == function_name) {
         return &iexamine::pay_gas;
+    }
+    if ("console" == function_name) {
+        return &iexamine::console;
     }
 
     //No match found

@@ -2576,7 +2576,6 @@ void computer::activate_random_failure()
 
 void computer::activate_failure(computer_failure fail)
 {
-    bool found_tile = false;
     switch (fail) {
 
     case COMPFAIL_NULL: // Unknown action.
@@ -2584,26 +2583,8 @@ void computer::activate_failure(computer_failure fail)
         break;
 
     case COMPFAIL_SHUTDOWN:
-        for( int x = g->u.posx - 1; x <= g->u.posx + 1; x++ ) {
-            for( int y = g->u.posy - 1; y <= g->u.posy + 1; y++ ) {
-                if( g->m.has_flag("CONSOLE", x, y) ) {
-                    g->m.ter_set(x, y, t_console_broken);
-                    add_msg(m_bad, _("The console shuts down."));
-                    found_tile = true;
-                }
-            }
-        }
-        if( found_tile ) {
-            break;
-        }
-        for (int x = 0; x < SEEX * MAPSIZE; x++) {
-            for (int y = 0; y < SEEY * MAPSIZE; y++) {
-                if (g->m.has_flag("CONSOLE", x, y)) {
-                    g->m.ter_set(x, y, t_console_broken);
-                    add_msg(m_bad, _("The console shuts down."));
-                }
-            }
-        }
+        g->m.ter_set(usex, usey, t_console_broken);
+        add_msg(m_bad, _("The console shuts down."));
         break;
 
     case COMPFAIL_ALARM:
@@ -2897,4 +2878,112 @@ void computer::load_lab_note(JsonObject &jsobj)
 void computer::clear_lab_notes()
 {
     lab_notes.clear();
+}
+
+computer_action computer_action_from_string(std::string input)
+{
+    if(input == "NULL"){
+        return COMPACT_NULL;
+    } else if(input == "OPEN"){
+        return COMPACT_OPEN;
+    } else if(input == "LOCK"){
+        return COMPACT_LOCK;
+    } else if(input == "UNLOCK"){
+        return COMPACT_UNLOCK;
+    } else if(input == "TOLL"){
+        return COMPACT_TOLL;
+    } else if(input == "SAMPLE"){
+        return COMPACT_SAMPLE;
+    } else if(input == "RELEASE"){
+        return COMPACT_RELEASE;
+    } else if(input == "BIONICS"){
+        return COMPACT_RELEASE_BIONICS;
+    } else if(input == "TERMINATE"){
+        return COMPACT_TERMINATE;
+    } else if(input == "PORTAL"){
+        return COMPACT_PORTAL;
+    } else if(input == "CASCADE"){
+        return COMPACT_CASCADE;
+    } else if(input == "RESEARCH"){
+        return COMPACT_RESEARCH;
+    } else if(input == "MAPS"){
+        return COMPACT_MAPS;
+    } else if(input == "MAP_SEWER"){
+        return COMPACT_MAP_SEWER;
+    } else if(input == "MISS_LAUNCH"){
+        return COMPACT_MISS_LAUNCH;
+    } else if(input == "MISS_DISARM"){
+        return COMPACT_MISS_DISARM;
+    } else if(input == "LIST_BIONICS"){
+        return COMPACT_LIST_BIONICS;
+    } else if(input == "ELEVATOR_ON"){
+        return COMPACT_ELEVATOR_ON;
+    } else if(input == "AMIGARA_LOG"){
+        return COMPACT_AMIGARA_LOG;
+    } else if(input == "AMIGARA_START"){
+        return COMPACT_AMIGARA_START;
+    } else if(input == "DOWNLOAD_SOFTWARE"){
+        return COMPACT_DOWNLOAD_SOFTWARE;
+    } else if(input == "BLOOD_ANAL"){
+        return COMPACT_BLOOD_ANAL;
+    } else if(input == "DATA_ANAL"){
+        return COMPACT_DATA_ANAL;
+    } else if(input == "DISCONNECT"){
+        return COMPACT_DISCONNECT;
+    } else if(input == "STEMCELL_TREATMENT"){
+        return COMPACT_STEMCELL_TREATMENT;
+    } else if(input == "EMERG_MESS"){
+        return COMPACT_EMERG_MESS;
+    } else if(input == "TOWER_UNRESPONSIVE"){
+        return COMPACT_TOWER_UNRESPONSIVE;
+    } else if(input == "SR1_MESS"){
+        return COMPACT_SR1_MESS;
+    } else if(input == "SR2_MESS"){
+        return COMPACT_SR2_MESS;
+    } else if(input == "SR3_MESS"){
+        return COMPACT_SR3_MESS;
+    } else if(input == "SR4_MESS"){
+        return COMPACT_SR4_MESS;
+    } else if(input == "SRCF_1_MESS"){
+        return COMPACT_SRCF_1_MESS;
+    } else if(input == "SRCF_2_MESS"){
+        return COMPACT_SRCF_2_MESS;
+    } else if(input == "SRCF_3_MESS"){
+        return COMPACT_SRCF_3_MESS;
+    } else if(input == "SRCF_SEAL_ORDER"){
+        return COMPACT_SRCF_SEAL_ORDER;
+    } else if(input == "SRCF_SEAL"){
+        return COMPACT_SRCF_SEAL;
+    } else if(input == "SRCF_ELEVATOR"){
+        return COMPACT_SRCF_ELEVATOR;
+    }
+    return COMPACT_NULL;
+}
+
+computer_failure computer_failure_from_string(std::string input)
+{
+    if(input == "NULL"){
+	    return COMPFAIL_NULL;
+	} else if(input == "SHUTDOWN"){
+        return COMPFAIL_SHUTDOWN;
+	} else if(input == "ALARM"){
+        return COMPFAIL_ALARM;
+	} else if(input == "MANHACKS"){
+        return COMPFAIL_MANHACKS;
+	} else if(input == "SECUBOTS"){
+        return COMPFAIL_SECUBOTS;
+	} else if(input == "DAMAGE"){
+        return COMPFAIL_DAMAGE;
+	} else if(input == "PUMP_EXPLODE"){
+        return COMPFAIL_PUMP_EXPLODE;
+	} else if(input == "PUMP_LEAK"){
+        return COMPFAIL_PUMP_LEAK;
+	} else if(input == "AMIGARA"){
+        return COMPFAIL_AMIGARA;
+	} else if(input == "DESTROY_BLOOD"){
+        return COMPFAIL_DESTROY_BLOOD;
+	} else if(input == "DESTROY_DATA"){
+        return COMPFAIL_DESTROY_DATA;
+	}
+	return COMPFAIL_NULL;
 }

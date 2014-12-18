@@ -593,4 +593,7 @@ class computer
         std::vector<compopt> compopts;
 };
 
+computer_action computer_action_from_string(std::string input);
+computer_failure computer_failure_from_string(std::string input);
+
 #endif

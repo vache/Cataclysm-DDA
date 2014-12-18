@@ -3203,6 +3203,7 @@
         "color": "blue",
         "move_cost": 0,
         "flags": ["TRANSPARENT", "CONSOLE", "NOITEM", "INDOORS", "SHORT"],
+		"examine_action":"console",
         "deconstruct": {
             "ter_set": "t_floor",
             "items": [
