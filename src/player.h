@@ -14,6 +14,7 @@
 #include "player_activity.h"
 #include "messages.h"
 #include "clzones.h"
+#include "artifact.h"
 
 #include <unordered_set>
 #include <bitset>
@@ -39,6 +40,10 @@ struct special_attack {
         stab = 0;
     };
 };
+
+// The minimum level recoil will reach without aiming.
+// Sets the floor for accuracy of a "snap" or "hip" shot.
+#define MIN_RECOIL 150
 
 //Don't forget to add new memorial counters
 //to the save and load functions in savegame_json.cpp
@@ -120,6 +125,7 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         /** Empties the trait list */
         void empty_traits();
         void add_traits();
+        void empty_skills();
         /** Returns the id of a random starting trait that costs >= 0 points */
         std::string random_good_trait();
         /** Returns the id of a random starting trait that costs < 0 points */
@@ -143,9 +149,15 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         {
             return true;
         }
-
-        /** Processes long-term effects */
-        void process_effects(); // Process long-term effects
+        
+        /** Handles human-specific effect application effects before calling Creature::add_eff_effects(). */
+        virtual void add_eff_effects(effect e, bool reduced);
+        /** Processes human-specific effects effects before calling Creature::process_effects(). */
+        void process_effects();
+        /** Handles the still hard-coded effects. */
+        void hardcoded_effects(effect &it);
+        /** Returns the modifier value used for vomiting effects. */
+        double vomit_mod();
 
         virtual bool is_npc() const
         {
@@ -177,6 +189,13 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         void disp_info();
         /** Provides the window and detailed morale data */
         void disp_morale();
+        /** Print the bars indicating how well the player is currently aiming.**/
+        int print_aim_bars( WINDOW *w, int line_number, item *weapon, Creature *target);
+        /** Print just the gun mode indicator. **/
+        void print_gun_mode( WINDOW *w, nc_color c );
+        /** Print just the colored recoil indicator. **/
+        void print_recoil( WINDOW *w ) const;
+
         /** Generates the sidebar and it's data in-game */
         void disp_status(WINDOW *w, WINDOW *w2);
 
@@ -208,7 +227,7 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         void update_body_wetness();
 
         /** Returns true if the player has the entered trait */
-        bool has_trait(const std::string &flag) const;
+        virtual bool has_trait(const std::string &flag) const;
         /** Returns true if the player has the entered starting trait */
         bool has_base_trait(const std::string &flag) const;
         /** Returns true if the player has a conflicting trait to the entered trait
@@ -233,7 +252,7 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         void toggle_trait(const std::string &flag);
         /** Toggles a mutation on the player */
         void toggle_mutation(const std::string &flag);
-        void toggle_str_set( std::vector< std::string > &set, const std::string &str );
+        void toggle_str_set( std::unordered_set< std::string > &set, const std::string &str );
         /** Modifies mutation_category_level[] based on the entered trait */
         void set_cat_level_rec(const std::string &sMut);
         /** Recalculates mutation_category_level[] values for the player */
@@ -264,12 +283,12 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         /** Generates and handles the UI for player interaction with installed bionics */
         void power_bionics();
         void power_mutations();
-        /** Handles bionic activation effects of the entered bionic */
-        void activate_bionic(int b);
-        void activate_mutation(int b);
-        /** Handles bionic deactivation effects of the entered bionic */
-        void deactivate_bionic(int b);
-        void deactivate_mutation(int b);
+        /** Handles bionic activation effects of the entered bionic, returns if anything activated */
+        bool activate_bionic(int b, bool eff_only = false);
+        /** Handles bionic deactivation effects of the entered bionic, returns if anything deactivated */
+        bool deactivate_bionic(int b, bool eff_only = false);
+        /** Handles bionic effects over time of the entered bionic */
+        void process_bionic(int b);
         /** Randomly removes a bionic from my_bionics[] */
         bool remove_random_bionic();
         /** Returns the size of my_bionics[] */
@@ -278,7 +297,6 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         bionic &bionic_at_index(int i);
         /** Returns the bionic with the given invlet, or NULL if no bionic has that invlet */
         bionic *bionic_by_invlet(char ch);
-        std::string *mutation_by_invlet(char ch);
         /** Returns player lumination based on the brightest active item they are carrying */
         float active_light();
 
@@ -328,8 +346,6 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         bool handle_melee_wear();
         /** True if unarmed or wielding a weapon with the UNARMED_WEAPON flag */
         bool unarmed_attack() const;
-        /** Check if the item is suitable for auto-wielding, based on skill/style/item type */
-        bool is_suitable_weapon(const item &it) const;
         /** Called when a player triggers a trap, returns true if they don't set it off */
         bool avoid_trap(trap *tr, int x, int y);
 
@@ -368,7 +384,16 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
          * because the player is in the way.
          */
         Creature *auto_find_hostile_target(int range, int &boo_hoo, int &fire_t);
+        /**
+         * Returns all creatures that this player can see and that are in the given
+         * range. This player object itself is never included.
+         * The player character (g->u) is checked and might be included (if applicable).
+         * @param range The maximal distance (@ref rl_dist), creatures at this distance or less
+         * are included.
+         */
+        std::vector<Creature*> get_visible_creatures( int range ) const;
 
+        Attitude attitude_to( const Creature &other ) const override;
 
         void pause(); // '.' command; pauses & reduces recoil
 
@@ -444,8 +469,10 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         bool can_weapon_block();
         /** Sets up a melee attack and handles melee attack function calls */
         void melee_attack(Creature &t, bool allow_special, matec_id technique = "");
+        /** Returns the player's dispersion modifier based on skill. **/
+        int skill_dispersion( item *weapon, bool random ) const;
         /** Returns a weapon's modified dispersion value */
-        double get_weapon_dispersion(item *weapon);
+        double get_weapon_dispersion( item *weapon, bool random ) const;
         /** Returns true if a gun misfires, jams, or has other problems, else returns false */
         bool handle_gun_damage( it_gun *firing, std::set<std::string> *curammo_effects );
         /** Handles gun firing effects and functions */
@@ -530,11 +557,12 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         /** Returns the throw range of the item at the entered inventory position. -1 = ERR, 0 = Can't throw */
         int throw_range(int pos);
         /** Returns the ranged attack dexterity mod */
-        int ranged_dex_mod (bool real_life = true);
+        int ranged_dex_mod() const;
         /** Returns the ranged attack perception mod */
-        int ranged_per_mod (bool real_life = true);
+        int ranged_per_mod() const;
         /** Returns the throwing attack dexterity mod */
-        int throw_dex_mod  (bool real_life = true);
+        int throw_dex_mod(bool return_stat_effect = true) const;
+        int aim_per_time( item *gun ) const;
 
         // Mental skills and stats
         /** Returns the player's reading speed */
@@ -556,6 +584,10 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         void apply_damage(Creature *source, body_part bp, int amount);
         /** Modifies a pain value by player traits before passing it to Creature::mod_pain() */
         void mod_pain(int npain);
+        
+        void cough(bool harmful = false, int volume = 4);
+        
+        void add_pain_msg(int val, body_part bp);
 
         /** Heals a body_part for dam */
         void heal(body_part healed, int dam);
@@ -677,14 +709,14 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         void do_read( item *book );
         /** Note that we've read a book at least once. **/
         bool has_identified( std::string item_id ) const;
-        /** Handles sleep attempts by the player, adds DIS_LYING_DOWN */
+        /** Handles sleep attempts by the player, adds "lying_down" */
         void try_to_sleep();
-        /** Checked each turn during DIS_LYING_DOWN, returns true if the player falls asleep */
-        bool can_sleep(); // Checked each turn during DIS_LYING_DOWN
-        /** Adds the sleeping disease to the player */
+        /** Checked each turn during "lying_down", returns true if the player falls asleep */
+        bool can_sleep();
+        /** Adds "sleep" to the player */
         void fall_asleep(int duration);
-        /** Removes the sleeping disease from the player, displaying message */
-        void wake_up(const char *message = NULL);
+        /** Removes "sleep" and "lying_down" from the player */
+        void wake_up();
         /** Checks to see if the player is using floor items to keep warm, and return the name of one such item if so */
         std::string is_snuggling();
         /** Returns a value used for things like reading and sewing based on light level */
@@ -821,15 +853,14 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         {
             // player usually interacts with items in the inventory the most (?)
             std::list<item> result = inv.remove_items_with( filter );
-            for( auto it = worn.begin(); it != worn.end(); ) {
-                if( filter( *it ) ) {
-                    result.push_back( std::move( *it ) );
-                    it = worn.erase( it );
+            for( auto &article : worn ) {
+                if( filter( article ) ) {
+                    result.push_back( article );
                 } else {
-                    result.splice( result.begin(), it->remove_items_with( filter ) );
-                    ++it;
+                    result.splice( result.begin(), article.remove_items_with( filter ) );
                 }
             }
+            worn.erase( std::remove_if( worn.begin(), worn.end(), filter ), worn.end() );
             if( !weapon.is_null() ) {
                 if( filter( weapon ) ) {
                     result.push_back( remove_weapon() );
@@ -912,10 +943,10 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         bool has_artifact_with(const art_effect_passive effect) const;
         bool worn_with_flag( std::string flag ) const;
 
-        bool covered_with_flag(const std::string flag, std::bitset<13> parts) const;
-        bool covered_with_flag_exclusively(const std::string flag, std::bitset<13> parts) const;
-        bool is_water_friendly(std::bitset<13> parts) const;
-        bool is_waterproof(std::bitset<13> parts) const;
+        bool covered_with_flag(const std::string flag, std::bitset<num_bp> parts) const;
+        bool covered_with_flag_exclusively(const std::string flag, std::bitset<num_bp> parts) const;
+        bool is_water_friendly(std::bitset<num_bp> parts) const;
+        bool is_waterproof(std::bitset<num_bp> parts) const;
 
         // has_amount works ONLY for quantity.
         // has_charges works ONLY for charges.
@@ -931,8 +962,10 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
 
         // Check for free container space for the whole liquid item
         bool has_container_for(const item &liquid);
-        bool has_item_with_flag( std::string flag )
-        const; // Has a weapon, inventory item or worn item with flag
+        // Has a weapon, inventory item or worn item with flag
+        bool has_item_with_flag( std::string flag ) const;
+        // Has amount (or more) items with at least the required quality level.
+        bool has_items_with_quality( const std::string &quality_id, int level, int amount ) const;
         bool has_item(int position);
         /**
          * Check whether a specific item is in the players possession.
@@ -962,7 +995,39 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         bool knows_recipe( const recipe *rec ) const;
         void learn_recipe( recipe *rec );
 
-        bool studied_all_recipes(it_book *book);
+        bool studied_all_recipes(const itype &book) const;
+
+        // crafting.cpp
+        bool crafting_allowed(); // is morale high enough to craft?
+        bool crafting_can_see(); // can player see well enough to craft?
+        bool can_make(const recipe *r, int batch_size = 1); // have components?
+        bool making_would_work(const std::string &id_to_make, int batch_size);
+        void craft();
+        void recraft();
+        void long_craft();
+        void make_craft(const std::string &id, int batch_size);
+        void make_all_craft(const std::string &id, int batch_size);
+        void complete_craft();
+
+        // also crafting.cpp
+        /**
+         * Check if the player can disassemble the item dis_item with the recipe
+         * cur_recipe and the inventory crafting_inv.
+         * Checks for example tools (and charges), enough input charges
+         * (if disassembled item is counted by charges).
+         * If print_msg is true show a message about missing tools/charges.
+         */
+        bool can_disassemble( const item *dis_item, const recipe *cur_recipe,
+                              const inventory &crafting_inv, bool print_msg ) const;
+        void disassemble(int pos = INT_MAX);
+        void complete_disassemble();
+
+        // yet more crafting.cpp
+        const inventory &crafting_inventory(); // includes nearby items
+        void invalidate_crafting_inventory();
+        std::vector<item> get_eligible_containers_for_crafting();
+        std::list<item> consume_items(const std::vector<item_comp> &components, int batch = 1);
+        void consume_tools(const std::vector<tool_comp> &tools, int batch = 1);
 
         // Auto move methods
         void set_destination(const std::vector<point> &route);
@@ -1016,8 +1081,8 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         int hunger, thirst, fatigue;
         int stomach_food, stomach_water;
         int oxygen;
-        unsigned int recoil;
-        unsigned int driving_recoil;
+        int recoil;
+        int driving_recoil;
         int scent;
         int dodges_left, blocks_left;
         int stim, pkill, radiation;
@@ -1058,15 +1123,19 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         inventory inv;
         itype_id last_item;
         std::vector<item> worn;
+        std::map<char, itype_id> assigned_invlet;
+
         std::vector<matype_id> ma_styles;
         matype_id style_selected;
+        bool keep_hands_free;
 
         item weapon;
         item ret_null; // Null item, sometimes returns by weapon() etc
 
         std::vector <addiction> addictions;
 
-        recipe *lastrecipe;
+        std::string lastrecipe;
+        int last_batch;
         itype_id lastconsumed;        //used in crafting.cpp and construction.cpp
 
         //Dumps all memorial events into a single newline-delimited string
@@ -1141,9 +1210,21 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         void spores();
         void blossoms();
 
+        // return the calendar::turn the player expired
+        int get_turn_died() const
+        {
+            return turn_died;
+        }
+        // set the turn the turn the player died if not already done
+        void set_turn_died(int turn)
+        {
+            turn_died = (turn_died != -1) ? turn : turn_died;
+        }
+
     protected:
-        std::vector<std::string> my_traits;
-        std::vector<std::string> my_mutations;
+        std::unordered_set<std::string> my_traits;
+        std::unordered_set<std::string> my_mutations;
+        std::map<std::string, char> trait_keys;
         std::vector<bionic> my_bionics;
         std::list<disease> illness;
         bool underwater;
@@ -1163,7 +1244,16 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
         bool valid_aoe_technique( Creature &t, ma_technique &technique );
         bool valid_aoe_technique( Creature &t, ma_technique &technique,
                                   std::vector<int> &mon_targets, std::vector<int> &npc_targets );
+        /**
+         * Check whether the other creature is in range and can be seen by this creature.
+         * @param range The maximal distance (@ref rl_dist), creatures at this distance or less
+         * are included.
+         */
+        bool is_visible_in_range( const Creature &critter, int range ) const;
 
+        // Trigger and disable mutations that can be so toggled.
+        void activate_mutation( std::string mutation );
+        void deactivate_mutation( std::string mut );
         bool has_fire(const int quantity) const;
         void use_fire(const int quantity);
         /**
@@ -1171,19 +1261,26 @@ class player : public Character, public JsonSerializer, public JsonDeserializer
          * Also checks if UPS from this player is used instead of item charges.
          */
         bool has_enough_charges(const item &it, bool show_msg) const;
-        bool has_active_UPS() const;
 
-        bool can_study_recipe(it_book *book);
-        bool try_study_recipe(it_book *book);
+        bool can_study_recipe(const itype &book);
+        bool try_study_recipe(const itype &book);
 
         std::vector<point> auto_move_route;
         // Used to make sure auto move is canceled if we stumble off course
         point next_expected_position;
 
+        inventory cached_crafting_inventory;
+        int cached_moves;
+        int cached_turn;
+        point cached_position;
+
         struct reason_weight_list melee_miss_reasons;
 
         int id; // A unique ID number, assigned by the game class private so it cannot be overwritten and cause save game corruptions.
         //NPCs also use this ID value. Values should never be reused.
+
+        // turn the player expired, if -1 it has not been set yet.
+        int turn_died = -1;
 };
 
 #endif

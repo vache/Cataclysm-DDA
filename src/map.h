@@ -12,7 +12,6 @@
 #include <unordered_set>
 
 #include "mapdata.h"
-#include "mapitems.h"
 #include "overmap.h"
 #include "item.h"
 #include "json.h"
@@ -40,7 +39,8 @@ struct wrapped_vehicle{
 };
 
 typedef std::vector<wrapped_vehicle> VehicleList;
-typedef std::vector< std::list<item*> > itemslice;
+typedef std::vector< std::pair< item*, int > > itemslice;
+typedef std::string items_location;
 
 /**
  * Manage and cache data about a part of the map.
@@ -473,15 +473,25 @@ void add_corpse(int x, int y);
  void set_temperature(const int x, const int y, const int temperature); // Set temperature for all four submap quadrants
 
 // Items
- std::vector<item>& i_at(int x, int y);
+ // Const item accessor for examining items on the map without modifying them.
+ const std::vector<item>& i_at(int x, int y) const;
+ // Non-const item accessor for rare cases where items need to be modified en masse.
+ // Do not insert or remove items using this, it can break assumptions about caching.
+ std::vector<item>& i_at_mutable(int x, int y);
+ // Accessors to retrieve a mutable reference to an item.
+ item *get_item( int x, int y, int i );
+ item *get_item( const int x, const int y, std::vector<item>::const_iterator i );
  itemslice i_stacked(std::vector<item>& items);
  item water_from(const int x, const int y);
  item swater_from(const int x, const int y);
  item acid_from(const int x, const int y);
  void i_clear(const int x, const int y);
- void i_rem(const int x, const int y, const int index);
+ // Both i_rem() methods that return values act like conatiner::erase(),
+ // returning an iterator to the next item after removal.
+ std::vector<item>::const_iterator i_rem( const int x, const int y,
+                                          std::vector<item>::const_iterator it );
+ int i_rem(const int x, const int y, const int index);
  void i_rem(const int x, const int y, item* it);
- point find_item(const item *it);
  void spawn_artifact( const int x, const int y );
  void spawn_natural_artifact( const int x, const int y, const artifact_natural_property prop );
  void spawn_item(const int x, const int y, const std::string &itype_id,
@@ -492,6 +502,7 @@ void add_corpse(int x, int y);
  int stored_volume(const int x, const int y);
  bool is_full(const int x, const int y, const int addvolume = -1, const int addnumber = -1 );
  bool add_item_or_charges(const int x, const int y, item new_item, int overflow_radius = 2);
+ void add_item(const int x, const int y, item new_item, int maxitems = 64);
  void process_active_items();
 
  std::list<item> use_amount_square( const int x, const int y, const itype_id type,
@@ -502,6 +513,8 @@ void add_corpse(int x, int y);
                               const long amount );
 
  std::list<std::pair<tripoint, item *> > get_rc_items( int x = -1, int y = -1, int z = -1 );
+
+ void trigger_rc_items( std::string signal );
 
 // Traps
  std::string trap_get(const int x, const int y) const;
@@ -515,22 +528,73 @@ void add_corpse(int x, int y);
  const std::set<point> &trap_locations(trap_id t) const;
 
 // Fields
- field& field_at(const int x, const int y);
-
- int get_field_age(const point p, const field_id t);
- int get_field_strength(const point p, const field_id t);
- int adjust_field_age(const point p, const field_id t, const int offset);
- int adjust_field_strength(const point p, const field_id t, const int offset);
- int set_field_age(const point p, const field_id t, const int age, bool isoffset = false);
- int set_field_strength(const point p, const field_id t, const int str, bool isoffset = false);
- field_entry * get_field( const point p, const field_id t );
- bool add_field(const point p, const field_id t, const int density, const int age);
- bool add_field(const int x, const int y, const field_id t, const int density);
- void remove_field(const int x, const int y, const field_id field_to_remove);
+        /**
+         * Get the fields that are here. This is for querying and looking at it only,
+         * one can not change the fields.
+         * @param x,y The local map coordinates, if out of bounds, returns an empty field.
+         */
+        const field& field_at( const int x, const int y ) const;
+        /**
+         * Get the age of a field entry (@ref field_entry::age), if there is no
+         * field of that type, returns -1.
+         */
+        int get_field_age( const point p, const field_id t );
+        /**
+         * Get the density of a field entry (@ref field_entry::density),
+         * if there is no field of that type, returns 0.
+         */
+        int get_field_strength( const point p, const field_id t );
+        /**
+         * Increment/decrement age of field entry at point.
+         * @return resulting age or -1 if not present (does *not* create a new field).
+         */
+        int adjust_field_age( const point p, const field_id t, const int offset );
+        /**
+         * Increment/decrement density of field entry at point, creating if not present,
+         * removing if density becomes 0.
+         * @return resulting density, or 0 for not present (either removed or not created at all).
+         */
+        int adjust_field_strength( const point p, const field_id t, const int offset );
+        /**
+         * Set age of field entry at point.
+         * @return resulting age or -1 if not present (does *not* create a new field).
+         * @param isoffset If true, the given age value is added to the existing value,
+         * if false, the existing age is ignored and overridden.
+         */
+        int set_field_age( const point p, const field_id t, const int age, bool isoffset = false );
+        /**
+         * Set density of field entry at point, creating if not present,
+         * removing if density becomes 0.
+         * @return resulting density, or 0 for not present (either removed or not created at all).
+         * @param isoffset If true, the given str value is added to the existing value,
+         * if false, the existing density is ignored and overridden.
+         */
+        int set_field_strength( const point p, const field_id t, const int str, bool isoffset = false );
+        /**
+         * Get field of specific type at point.
+         * @return NULL if there is no such field entry at that place.
+         */
+        field_entry * get_field( const point p, const field_id t );
+        /**
+         * Add field entry at point, or set density if present
+         * @return false if the field could not be created (out of bounds), otherwise true.
+         */
+        bool add_field(const point p, const field_id t, const int density, const int age);
+        /**
+         * Add field entry at xy, or set density if present
+         * @return false if the field could not be created (out of bounds), otherwise true.
+         */
+        bool add_field(const int x, const int y, const field_id t, const int density);
+        /**
+         * Remove field entry at xy, ignored if the field entry is not present.
+         */
+        void remove_field( const int x, const int y, const field_id field_to_remove );
  bool process_fields(); // See fields.cpp
  bool process_fields_in_submap(submap * const current_submap, const int submap_x, const int submap_y); // See fields.cpp
- void step_in_field(const int x, const int y); // See fields.cpp
- void mon_in_field(const int x, const int y, monster *z); // See fields.cpp
+        /**
+         * Apply field effects to the creature when it's on a square with fields.
+         */
+        void creature_in_field( Creature &critter );
 
 // Computers
  computer* computer_at(const int x, const int y);
@@ -555,13 +619,27 @@ void add_corpse(int x, int y);
  void place_toilet(const int x, const int y, const int charges = 6 * 4); // 6 liters at 250 ml per charge
  void place_vending(int x, int y, std::string type);
  int place_npc(int x, int y, std::string type);
-
+ /**
+  * Place items from item group in the rectangle (x1,y1) - (x2,y2). Several items may be spawned
+  * on different places. Several items may spawn at once (at one place) when the item group says
+  * so (uses @ref item_group::items_from which may return several items at once).
+  * @param chance Chance for more items. A chance of 100 creates 1 item all the time, otherwise
+  * it's the chance that more items will be created (place items until the random roll with that
+  * chance fails). The chance is used for the first item as well, so it may not spawn an item at
+  * all. Values <= 0 or > 100 are invalid.
+  * @param ongrass If false the items won't spawn on flat terrain (grass, floor, ...).
+  * @param turn The birthday that the created items shall have.
+  * @return The number of placed items.
+  */
  int place_items(items_location loc, const int chance, const int x1, const int y1,
                   const int x2, const int y2, bool ongrass, const int turn, bool rand = true);
+ /**
+  * Place items from an item group at (x,y). Places as much items as the item group says.
+  * (Most item groups are distributions and will only create one item.)
+  * @param turn The birthday that the created items shall have.
+  * @return The number of placed items.
+  */
  int put_items_from_loc(items_location loc, const int x, const int y, const int turn = 0);
-// put_items_from puts exactly num items, based on chances
- void put_items_from(items_location loc, const int num, const int x, const int y, const int turn = 0,
-                    const int quantity = 0, const long charges = 0, const int damlevel = 0, const bool rand = true);
  void spawn_an_item(const int x, const int y, item new_item,
                     const long charges, const int damlevel);
  // Similar to spawn_an_item, but spawns a list of items, or nothing if the list is empty.
@@ -616,6 +694,41 @@ protected:
             const int gridx, const int gridy);
  void loadn(const int x, const int y, const int z, const int gridx, const int gridy,
             const  bool update_vehicles = true);
+        /**
+         * Fast forward a submap that has just been loading into this map.
+         * This is used to rot and remove rotten items, grow plants, fill funnels etc.
+         */
+        void actualize( const int gridx, const int gridy );
+        /**
+         * Whether the item has to be removed as it has rotten away completely.
+         * @param pnt The point on this map where the items are, used for rot calculation.
+         * @return true if the item has rotten away and should be removed, false otherwise.
+         */
+        bool has_rotten_away( item &itm, const point &pnt ) const;
+        /**
+         * Go through the list of items, update their rotten status and remove items
+         * that have rotten away completely.
+         * @param pnt The point on this map where the items are, used for rot calculation.
+         */
+        void remove_rotten_items( std::vector<item> &items, const point &pnt ) const;
+        /**
+         * Try to fill funnel based items here.
+         * @param pnt The location in this map where to fill funnels.
+         */
+        void fill_funnels( const point pnt );
+        /**
+         * Try to grow a harvestable plant to the next stage(s).
+         */
+        void grow_plant( const point pnt );
+        /**
+         * Try to grow fruits on static plants (not planted by the player)
+         * @param time_since_last_actualize Time (in turns) since this function has been
+         * called the last time.
+         */
+        void restock_fruits( const point pnt, int time_since_last_actualize );
+        void player_in_field( player &u );
+        void monster_in_field( monster &z );
+
  void copy_grid(const int to, const int from);
  void draw_map(const oter_id terrain_type, const oter_id t_north, const oter_id t_east,
                 const oter_id t_south, const oter_id t_west, const oter_id t_neast,
@@ -632,11 +745,11 @@ protected:
 
  int my_MAPSIZE;
 
- std::vector<item> nulitems; // Returned when &i_at() is asked for an OOB value
- ter_id nulter;  // Returned when &ter() is asked for an OOB value
- field nulfield; // Returned when &field_at() is asked for an OOB value
- vehicle nulveh; // Returned when &veh_at() is asked for an OOB value
- int null_temperature;  // Because radiation does it too
+ mutable std::vector<item> nulitems; // Returned when &i_at() is asked for an OOB value
+ mutable ter_id nulter;  // Returned when &ter() is asked for an OOB value
+ mutable field nulfield; // Returned when &field_at() is asked for an OOB value
+ mutable vehicle nulveh; // Returned when &veh_at() is asked for an OOB value
+ mutable int null_temperature;  // Because radiation does it too
 
  bool veh_in_active_range;
 
@@ -655,6 +768,11 @@ protected:
     void set_abs_sub(const int x, const int y, const int z);
 
 private:
+    field& get_field(const int x, const int y);
+    void spread_gas( field_entry *cur, int x, int y, field_id curtype,
+                        int percent_spread, int outdoor_age_speedup );
+    void create_hot_air( int x, int y, int density );
+
  bool transparency_cache_dirty;
  bool outside_cache_dirty;
 
@@ -685,11 +803,16 @@ private:
  void calc_ray_end(int angle, int range, int x, int y, int* outx, int* outy);
  void forget_traps(int gridx, int gridy);
  vehicle *add_vehicle_to_map(vehicle *veh, const int x, const int y, const bool merge_wrecks = true);
- void add_item(const int x, const int y, item new_item, int maxitems = 64);
 
- void process_active_items_in_submap(submap * const current_submap, int gridx, int gridy);
- void process_active_items_in_vehicles(submap * const current_submap);
- void process_active_items_in_vehicle(vehicle *cur_veh, submap * const current_submap);
+ // Iterates over every item on the map, passing each item to the provided function.
+ template<typename T>
+ void process_items( bool active, T processor );
+ template<typename T>
+ void process_items_in_submap( submap *const current_submap, int gridx, int gridy, T processor );
+ template<typename T>
+ void process_items_in_vehicles( submap *const current_submap, T processor);
+ template<typename T>
+ void process_items_in_vehicle( vehicle *cur_veh, submap *const current_submap, T processor );
 
  float lm[MAPSIZE*SEEX][MAPSIZE*SEEY];
  float sm[MAPSIZE*SEEX][MAPSIZE*SEEY];

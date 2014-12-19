@@ -44,6 +44,8 @@ class iexamine
         void remove_fence_barbed (player *p, map *m, int examx, int examy);
         void slot_machine (player *p, map *m, int examx, int examy);
         void safe (player *p, map *m, int examx, int examy);
+        void gunsafe_ml(player *p, map *m, int examx, int examy);
+        void gunsafe_el(player *p, map *m, int examx, int examy);
         void bulletin_board (player *p, map *m, int examx, int examy);
         void fault (player *p, map *m, int examx, int examy);
         void pedestal_wyrm (player *p, map *m, int examx, int examy);
@@ -65,6 +67,7 @@ class iexamine
                         bool seeds = false);
         void harvest_tree_shrub (player *p, map *m, int examx, int examy);
         void tree_pine (player *p, map *m, int examx, int examy);
+        void tree_blackjack (player *p, map *m, int examx, int examy);
         void shrub_blueberry (player *p, map *m, int examx, int examy);
         void shrub_strawberry (player *p, map *m, int examx, int examy);
         void shrub_marloss (player *p, map *m, int examx, int examy);

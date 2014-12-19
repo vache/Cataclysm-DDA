@@ -50,6 +50,8 @@ struct map_bash_info {
     int str_min_roll;       // lower bound of success check; defaults to str_min
     int str_max_roll;       // upper bound of success check; defaults to str_max
     int explosive;          // Explosion on destruction
+    int sound_vol;          // sound volume of breaking terrain/furniture
+    int sound_fail_vol;     // sound volume on fail
     bool destroy_only;      // Only used for destroying, not normally bashable
     std::vector<map_bash_item_drop> items; // list of items: map_bash_item_drop
     std::string sound;      // sound made on success ('You hear a "smash!"')
@@ -57,8 +59,8 @@ struct map_bash_info {
     std::string ter_set;    // terrain to set (REQUIRED for terrain))
     std::string furn_set;   // furniture to set (only used by furniture, not terrain)
     map_bash_info() : str_min(-1), str_max(-1), str_min_blocked(-1), str_max_blocked(-1),
-                      str_min_roll(-1), str_max_roll(-1), explosive(0), destroy_only(false),
-                      sound(""), sound_fail(""), ter_set(""), furn_set("") {};
+                      str_min_roll(-1), str_max_roll(-1), explosive(0), sound_vol(-1), sound_fail_vol(-1),
+                      destroy_only(false), sound(""), sound_fail(""), ter_set(""), furn_set("") {};
     bool load(JsonObject &jsobj, std::string member, bool is_furniture);
 };
 struct map_deconstruct_info {
@@ -104,6 +106,7 @@ struct map_deconstruct_info {
  * PLANT - A "furniture" that grows and fruits
  * LIQUIDCONT - Furniture that contains liquid, allows for contents to be accessed in some checks even if SEALED
  * OPENCLOSE_INSIDE - If it's a door (with an 'open' or 'close' field), it can only be opened or closed if you're inside.
+ * PERMEABLE - Allows gases to flow through unimpeded.
  *
  * Currently only used for Fungal conversions
  * WALL - This terrain is an upright obstacle
@@ -154,7 +157,8 @@ enum ter_bitflags {
     TFLAG_UNSTABLE,
     TFLAG_WALL,
     TFLAG_DEEP_WATER,
-    TFLAG_HARVESTED
+    TFLAG_HARVESTED,
+    TFLAG_PERMEABLE
 };
 extern std::map<std::string, ter_bitflags> ter_bitflags_map;
 void init_ter_bitflags_map();
@@ -503,8 +507,9 @@ extern ter_id t_null,
     t_grass,
     t_metal_floor,
     t_pavement, t_pavement_y, t_sidewalk, t_concrete,
-    t_floor,
+    t_floor, t_floor_waxed,
     t_dirtfloor,//Dirt floor(Has roof)
+    t_carpet_red,t_carpet_yellow,t_carpet_purple,t_carpet_green,
     t_grate,
     t_slime,
     t_bridge,
@@ -524,12 +529,12 @@ extern ter_id t_null,
     t_door_locked_interior, t_door_locked, t_door_locked_peep, t_door_locked_alarm, t_door_frame,
     t_chaingate_l, t_fencegate_c, t_fencegate_o, t_chaingate_c, t_chaingate_o,
     t_door_boarded, t_door_boarded_damaged, t_door_boarded_peep, t_rdoor_boarded, t_rdoor_boarded_damaged, t_door_boarded_damaged_peep,
-    t_door_metal_c, t_door_metal_o, t_door_metal_locked,
+    t_door_metal_c, t_door_metal_o, t_door_metal_locked, t_door_metal_pickable,
     t_door_bar_c, t_door_bar_o, t_door_bar_locked,
     t_door_glass_c, t_door_glass_o,
     t_portcullis,
     t_recycler, t_window, t_window_taped, t_window_domestic, t_window_domestic_taped, t_window_open, t_curtains,
-    t_window_alarm, t_window_alarm_taped, t_window_empty, t_window_frame, t_window_boarded, t_window_boarded_noglass,
+    t_window_alarm, t_window_alarm_taped, t_window_empty, t_window_frame, t_window_boarded, t_window_boarded_noglass, t_window_bars_alarm,
     t_window_stained_green, t_window_stained_red, t_window_stained_blue,
     t_rock, t_fault,
     t_paper,
@@ -537,7 +542,7 @@ extern ter_id t_null,
     // Tree
     t_tree, t_tree_young, t_tree_apple, t_tree_apple_harvested, t_tree_pear, t_tree_pear_harvested,
     t_tree_cherry, t_tree_cherry_harvested, t_tree_peach, t_tree_peach_harvested, t_tree_apricot, t_tree_apricot_harvested,
-    t_tree_plum, t_tree_plum_harvested, t_tree_pine, t_tree_deadpine, t_underbrush, t_shrub, t_shrub_blueberry, t_shrub_strawberry, t_trunk,
+    t_tree_plum, t_tree_plum_harvested, t_tree_pine, t_tree_blackjack, t_tree_deadpine, t_underbrush, t_shrub, t_shrub_blueberry, t_shrub_strawberry, t_trunk,
     t_root_wall,
     t_wax, t_floor_wax,
     t_fence_v, t_fence_h, t_chainfence_v, t_chainfence_h, t_chainfence_posts,
@@ -552,6 +557,7 @@ extern ter_id t_null,
     // More embellishments than you can shake a stick at.
     t_sandbox, t_slide, t_monkey_bars, t_backboard,
     t_gas_pump, t_gas_pump_smashed,
+    t_diesel_pump, t_diesel_pump_smashed,
     t_atm,
     t_generator_broken,
     t_missile, t_missile_exploded,
@@ -575,7 +581,9 @@ extern ter_id t_null,
     t_rock_red, t_rock_green, t_rock_blue, t_floor_red, t_floor_green, t_floor_blue,
      t_switch_rg, t_switch_gb, t_switch_rb, t_switch_even,
     t_rdoor_c, t_rdoor_b, t_rdoor_o, t_mdoor_frame, t_window_reinforced, t_window_reinforced_noglass,
-    t_window_enhanced, t_window_enhanced_noglass, t_open_air, t_plut_generator;
+    t_window_enhanced, t_window_enhanced_noglass, t_open_air, t_plut_generator,
+    t_pavement_bg_dp, t_pavement_y_bg_dp, t_sidewalk_bg_dp, t_guardrail_bg_dp,
+    t_linoleum_white, t_linoleum_gray;
 
 
 /*
@@ -589,7 +597,7 @@ extern furn_id f_null,
     f_barricade_road, f_sandbag_half, f_sandbag_wall,
     f_bulletin,
     f_indoor_plant,
-    f_bed, f_toilet, f_makeshift_bed,
+    f_bed, f_toilet, f_makeshift_bed, f_straw_bed,
     f_sink, f_oven, f_woodstove, f_fireplace, f_bathtub,
     f_chair, f_armchair, f_sofa, f_cupboard, f_trashcan, f_desk, f_exercise,
     f_bench, f_table, f_pool_table,
@@ -606,7 +614,8 @@ extern furn_id f_null,
     f_plant_seed, f_plant_seedling, f_plant_mature, f_plant_harvest,
     f_fvat_empty, f_fvat_full,
     f_wood_keg, f_egg_sackbw, f_egg_sackws, f_egg_sacke,
-    f_flower_marloss;
+    f_flower_marloss,
+    f_tatami;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //// These are on their way OUT and only used in certain switch statements until they are rewritten.

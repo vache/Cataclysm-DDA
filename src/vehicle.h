@@ -11,6 +11,7 @@
 #include <string>
 #include <iosfwd>
 
+
 class map;
 class player;
 
@@ -20,8 +21,10 @@ float get_collision_factor(float delta_v);
 //How far to scatter parts from a vehicle when the part is destroyed (+/-)
 #define SCATTER_DISTANCE 3
 
-#define num_fuel_types 5
+#define num_fuel_types 7
 extern const ammotype fuel_types[num_fuel_types];
+extern const nc_color fuel_colors[num_fuel_types];
+extern const int fuel_coeff[num_fuel_types];
 #define k_mvel 200 //adjust this to balance collision damage
 
 // 0 - nothing, 1 - monster/player/npc, 2 - vehicle,
@@ -71,7 +74,7 @@ struct vehicle_part : public JsonSerializer, public JsonDeserializer
 {
     vehicle_part(const std::string &sid = "", int dx = 0, int dy = 0,
                  const item *it = NULL) : id("null"), iid(0), mount_dx(dx), mount_dy(dy),
-                 hp(0), blood(0), bigness(0), inside(false), removed(false), flags(0),
+                 hp(0), blood(0), bigness(0), inside(false), removed(false),enabled(1), flags(0),
                  passenger_id(0), amount(0), target(point(0,0),point(0,0)) {
         precalc_dx[0] = precalc_dx[1] = -1;
         precalc_dy[0] = precalc_dy[1] = -1;
@@ -100,6 +103,7 @@ struct vehicle_part : public JsonSerializer, public JsonDeserializer
     bool inside;            // if tile provides cover. WARNING: do not read it directly, use vehicle::is_inside() instead
     bool removed;           // TRUE if this part is removed. The part won't disappear until the end of the turn
                             // so our indices can remain consistent.
+    bool enabled;
     int flags;
     int passenger_id;       // carrying passenger
     union
@@ -257,7 +261,8 @@ private:
     // direct damage to part (armor protection and internals are not counted)
     // returns damage bypassed
     int damage_direct (int p, int dmg, int type = 1);
-
+    //damages vehicle controls and security system
+    void smash_security_system();
     // get vpart powerinfo for part number, accounting for variable-sized parts and hps.
     int part_power( int index, bool at_full_hp = false );
 
@@ -275,6 +280,8 @@ private:
 
     // Do stuff like clean up blood and produce smoke from broken parts. Returns false if nothing needs doing.
     bool do_environmental_effects();
+
+    int total_folded_volume() const;
 
     /**
      * Find a possibly off-map vehicle. If necessary, loads up its submap through
@@ -305,6 +312,8 @@ public:
 
 // check if given player controls this vehicle
     bool player_in_control (player *p);
+// check if player controls this vehicle remotely
+    bool remote_controlled (player *p);
 
 // init parts state for randomly generated vehicle
     void init_state(int veh_init_fuel, int veh_init_status);
@@ -332,7 +341,7 @@ public:
 
 // Honk the vehicle's horn, if there are any
     void honk_horn();
-
+    
     void play_music();
 
 // get vpart type info for part number (part at given vector index)
@@ -431,7 +440,7 @@ public:
 
 // Vehicle fuel indicator. Should probably rename to print_fuel_indicators and make a print_fuel_indicator(..., FUEL_TYPE);
     void print_fuel_indicator (void *w, int y, int x, bool fullsize = false,
-                               bool verbose = false, bool desc = false);
+                               bool verbose = false, bool desc = false, bool isHorizontal = false);
 
 // Precalculate mount points for (idir=0) - current direction or (idir=1) - next turn direction
     void precalc_mounts (int idir, int dir);
@@ -475,7 +484,7 @@ public:
 
     void consume_fuel( double load );
 
-    void power_parts ();
+    void power_parts (tripoint sm_loc);
 
     /**
      * Try to charge our (and, optionally, connected vehicles') batteries by the given amount.
@@ -489,7 +498,7 @@ public:
      */
     int discharge_battery (int amount, bool recurse = true);
 
-// get the total mass of vehicle, including cargo and passengers
+    // get the total mass of vehicle, including cargo and passengers
     int total_mass ();
 
 // get center of mass of vehicle; coordinates are precalc_dx[0] and precalc_dy[0]
@@ -500,7 +509,7 @@ public:
     int total_power (bool fueled = true);
 
 // Get combined epower of solar panels
-    int solar_epower ();
+    int solar_epower (tripoint sm_loc);
 
 // Get acceleration gained by combined power of all engines. If fueled == true, then only engines which
 // vehicle have fuel for are accounted
@@ -518,7 +527,7 @@ public:
     void spew_smoke( double joules, int part );
 
     // Loop through engines and generate noise and smoke for each one
-    void noise_and_smoke( double load, double time = 6.0, bool on_map = true );
+    void noise_and_smoke( double load, double time = 6.0 );
 
 // Calculate area covered by wheels and, optionally count number of wheels
     float wheels_area (int *cnt = 0);
@@ -543,7 +552,8 @@ public:
 
 // idle fuel consumption
     void idle (bool on_map = true);
-
+// continuous processing for running vehicle alarms
+    void alarm ();
 // leak from broken tanks
     void slow_leak ();
 
@@ -638,7 +648,10 @@ public:
     bool is_foldable() const;
     // Restore parts of a folded vehicle.
     bool restore(const std::string &data);
-
+    //handles locked vehicles interaction
+    bool interact_vehicle_locked(); 
+    //true if an alarm part is installed on the vehicle
+    bool has_security_working();
     /**
      *  Opens everything that can be opened on the same tile as `p`
      */
@@ -646,6 +659,39 @@ public:
 
     // upgrades/refilling/etc. see veh_interact.cpp
     void interact ();
+    
+    //main method for the control of individual engines
+    void control_engines();
+    // shows ui menu to select an engine
+    int select_engine();
+    //returns whether the engine is enabled or not, and has fueltype
+    bool is_engine_type_on(int e, const ammotype & ft);
+    //returns whether the engine is enabled or not
+    bool is_engine_on(int e);
+    //returns whether the part is enabled or not
+    bool is_part_on(int p);
+    //returns whether the engine uses specified fuel type
+    bool is_engine_type(int e, const ammotype  & ft);
+    //returns whether there is an active engine at vehicle coordinates
+    bool is_active_engine_at(int x,int y);
+    //returns whether the alternator is operational
+    bool is_alternator_on(int a);
+    //mark engine as on or off
+    void toggle_specific_engine(int p, bool on);
+    void toggle_specific_part(int p,bool on);
+    //true if an engine exists with specified type
+    //If enabled true, this engine must be enabled to return true
+    bool has_engine_type(const ammotype  & ft, bool enabled);
+    //true if an engine exists without the specified type
+    //If enabled true, this engine must be enabled to return true
+    bool has_engine_type_not(const ammotype  & ft, bool enabled);
+    //prints message relating to vehicle start failure
+    void msg_start_engine_fail();
+    //if necessary, damage this engine
+    void do_engine_damage(size_t p, int strain);
+    //remotely open/close doors
+    void control_doors();
+
 
     // return a vector w/ 'direction' & 'magnitude', in its own sense of the words.
     rl_vec2d velo_vec();
@@ -668,6 +714,7 @@ public:
     std::vector<int> solar_panels;     // List of solar panel indices
     std::vector<int> loose_parts;      // List of UNMOUNT_ON_MOVE parts
     std::vector<int> wheelcache;
+    std::vector<int> speciality;        //List of parts that will not be on a vehicle very often, or which only one will be present
     std::vector<vehicle_item_spawn> item_spawns; //Possible starting items
     std::set<std::string> tags;        // Properties of the vehicle
 
@@ -712,13 +759,12 @@ public:
     std::string music_id;    // what music storage device is in the stereo
     bool cruise_on;     // cruise control on/off
     bool reactor_on;    // reactor on/off
-    bool engine_on;     // engine on/off
-    bool has_pedals;
-    bool has_paddles;
-    bool has_hand_rims;
+    bool engine_on;     // at least one engine is on, of any type
     bool lights_on;     // lights on/off
     bool stereo_on;
     bool tracking_on;        // vehicle tracking on/off
+    bool is_locked; //vehicle has no key
+    bool is_alarm_on;  //vehicle has alarm on
     int om_id;          // id of the om_vehicle struct corresponding to this vehicle
     bool overhead_lights_on; //circle lights on/off
     bool fridge_on;     //fridge on/off
@@ -734,6 +780,7 @@ public:
     int overhead_epower;   // total power of components with CIRCLE_LIGHT flag
     int tracking_epower; // total power consumed by tracking devices (why would you use more than one?)
     int fridge_epower; // total power consumed by fridges
+    int alarm_epower;
     int recharger_epower; // total power consumed by rechargers
     bool check_environmental_effects; // True if it has bloody or smoking parts
 };

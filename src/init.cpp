@@ -201,13 +201,13 @@ void DynamicDataLoader::initialize()
         &faction::load_faction);
     type_function_map["npc"] = new StaticFunctionAccessor(
         &npc::load_npc);
+
 }
 
 void DynamicDataLoader::reset()
 {
-    for(t_type_function_map::iterator a = type_function_map.begin(); a != type_function_map.end();
-        ++a) {
-        delete a->second;
+    for( auto &elem : type_function_map ) {
+        delete elem.second;
     }
     type_function_map.clear();
 }
@@ -231,8 +231,8 @@ void DynamicDataLoader::load_data_from_path(const std::string &path)
         }
     }
     // iterate over each file
-    for (size_t i = 0; i < files.size(); i++) {
-        const std::string &file = files[i];
+    for( auto &files_i : files ) {
+        const std::string &file = files_i;
         // open the file as a stream
         std::ifstream infile(file.c_str(), std::ifstream::in | std::ifstream::binary);
         // and stuff it into ram
@@ -318,7 +318,7 @@ void DynamicDataLoader::unload_data()
     // Mission types are not loaded from json, but they depend on
     // the overmap terrain + items and that gets loaded from json.
     g->mission_types.clear();
-    item_controller->clear_items_and_groups();
+    item_controller->reset();
     mutations_category.clear();
     mutation_data.clear();
     traits.clear();
@@ -345,9 +345,8 @@ void DynamicDataLoader::unload_data()
     reset_speech();
     iuse::reset_bullet_pulling();
     clear_overmap_specials();
+    ammunition_type::reset();
 
-    // artifacts are not loaded from json, but must be unloaded anyway.
-    artifact_itype_ids.clear();
     // TODO:
     //    NameGenerator::generator().clear_names();
 }
@@ -370,8 +369,8 @@ void DynamicDataLoader::finalize_loaded_data()
 
 void DynamicDataLoader::check_consistency()
 {
-    item_controller->check_itype_definitions();
-    item_controller->check_items_of_groups_exist();
+    item_controller->check_definitions();
+    g->check_vehicleparts();
     MonsterGenerator::generator().check_monster_definitions();
     MonsterGroupManager::check_group_definitions();
     check_recipe_definitions();
