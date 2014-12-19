@@ -11399,7 +11399,6 @@ void map::add_computer(int x, int y, computer c)
  */
 void map::rotate(int turns)
 {
-
     //Handle anything outside the 1-3 range gracefully; rotate(0) is a no-op.
     turns = turns % 4;
     if(turns == 0) {
@@ -11478,8 +11477,25 @@ void map::rotate(int turns)
             signage_rot[old_x][old_y] = get_signage(new_x, new_y);
             // TODO finish this
             //tmpcomp[point(old_x, old_y)] =
+            if(computer_at(new_x, new_y) != NULL){
+                tmpcomp[point(old_x, old_y)] = *computer_at(new_x, new_y);
+            }
             i_clear(new_x, new_y);
         }
+    }
+
+    for(auto comp : tmpcomp){
+        point p = comp.first;
+        submap* sm = get_submap_at(p.x, p.y);
+        sm->computers.clear();
+    }
+    for(auto comp : tmpcomp){
+        point p = comp.first;
+        computer c = comp.second;
+        int lx, ly;
+        submap* sm = get_submap_at(p.x, p.y, lx, ly);
+        sm->computers[point(lx, ly)] = c;
+        debugmsg("computer rotated to: (%d, %d)", p.x, p.y);
     }
 
     //Next, spawn points
@@ -11530,6 +11546,7 @@ void map::rotate(int turns)
     // during mapgen, my_MAPSIZE = 2
     // Be sure to change coords of individual computers
     // basic formula: rot1 (11-y, x), rot2 (11-x, 11-y), rot3 (y, 11-x)
+    /*
     switch (turns) {
     case 1:
         tmpcomp = grid[0]->computers;
@@ -11556,6 +11573,8 @@ void map::rotate(int turns)
         grid[my_MAPSIZE]->computers = tmpcomp;
         break;
     }
+    */
+
 
     // change vehicles' directions
     for (int i = 0; i < my_MAPSIZE * my_MAPSIZE; i++) {
