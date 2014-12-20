@@ -91,13 +91,56 @@ struct computer_option {
 class compsec
 {
 protected:
-    compsec(){}
+    compsec(int x = INT_MIN, int y = INT_MIN):tarx(x), tary(y){}
     computer* c;
+    int tarx;
+    int tary;
 public:
     virtual ~compsec(){}
+    virtual compsec* clone() = 0;
     virtual bool attempt() = 0;
     virtual std::string save() = 0;
     void set_computer(computer* comp){c=comp;}
+    void rotate(int turns);
+};
+
+class compsec_nodisease : public compsec
+{
+public:
+    compsec_nodisease(int charges) : charges(charges){}
+    compsec_nodisease(std::stringstream& stream);
+    compsec_nodisease(JsonObject& jo);
+    ~compsec_nodisease(){}
+    compsec_nodisease* clone();
+    bool attempt();
+    std::string save();
+    int charges;
+};
+
+class compsec_chargecard : public compsec
+{
+public:
+    compsec_chargecard(int charges) : charges(charges){}
+    compsec_chargecard(std::stringstream& stream);
+    compsec_chargecard(JsonObject& jo);
+    ~compsec_chargecard(){}
+    compsec_chargecard* clone();
+    bool attempt();
+    std::string save();
+    int charges;
+};
+
+class compsec_bionic : public compsec
+{
+public:
+    compsec_bionic(std::string bionic) : bionic(bionic){}
+    compsec_bionic(std::stringstream& stream);
+    compsec_bionic(JsonObject& jo);
+    ~compsec_bionic(){}
+    compsec_bionic* clone();
+    bool attempt();
+    std::string save();
+    std::string bionic;
 };
 
 class compsec_skillcheck : public compsec
@@ -107,6 +150,7 @@ public:
     compsec_skillcheck(std::stringstream& stream);
     compsec_skillcheck(JsonObject& jo);
     ~compsec_skillcheck(){}
+    compsec_skillcheck* clone();
     bool attempt();
     std::string save();
     std::string skill;
@@ -120,6 +164,7 @@ public:
     compsec_trait_or_hack(std::stringstream& stream);
     compsec_trait_or_hack(JsonObject& jo);
     ~compsec_trait_or_hack(){}
+    compsec_trait_or_hack* clone();
     bool attempt();
     std::string save();
     std::string t;
@@ -133,6 +178,7 @@ public:
     compsec_pass_or_hack(std::stringstream& stream);
     compsec_pass_or_hack(JsonObject& jo);
     ~compsec_pass_or_hack(){}
+    compsec_pass_or_hack* clone();
     bool attempt();
     std::string save();
     std::string pass;
@@ -146,6 +192,7 @@ public:
     compsec_trait(std::stringstream& stream);
     compsec_trait(JsonObject& jo);
     ~compsec_trait(){}
+    compsec_trait* clone();
     bool attempt();
     std::string save();
     std::string t;
@@ -158,6 +205,7 @@ public:
     compsec_pass(std::stringstream& stream);
     compsec_pass(JsonObject& jo);
     ~compsec_pass(){}
+    compsec_pass* clone();
     bool attempt();
     std::string save();
     std::string pass;
@@ -170,6 +218,7 @@ public:
     compsec_hack(std::stringstream& stream);
     compsec_hack(JsonObject& jo);
     ~compsec_hack(){}
+    compsec_hack* clone();
     bool attempt();
     std::string save();
     int diff;
@@ -182,6 +231,7 @@ public:
     compsec_item(std::stringstream& stream);
     compsec_item(JsonObject& jo);
     ~compsec_item(){}
+    compsec_item* clone();
     bool attempt();
     std::string save();
     std::string it;
@@ -191,28 +241,27 @@ public:
 class compsec_itemat : public compsec
 {
 public:
-    compsec_itemat(std::string item, int x, int y) : it(item), itemx(x), itemy(y){}
+    compsec_itemat(std::string item, int x, int y) : compsec(x, y), it(item){}
     compsec_itemat(std::stringstream& stream);
     compsec_itemat(JsonObject& jo);
     ~compsec_itemat(){}
+    compsec_itemat* clone();
     bool attempt();
     std::string save();
     std::string it;
-    int itemx;
-    int itemy;
 };
 
 class compsec_containerat : public compsec
 {
 public:
     compsec_containerat(int x, int y, bool watertight, bool software, bool empty, std::string containing = "") :
-        itemx(x), itemy(y), wt(watertight), soft(software), empty(empty), it(containing){}
+        compsec(x, y), wt(watertight), soft(software), empty(empty), it(containing){}
     compsec_containerat(std::stringstream& stream);
     compsec_containerat(JsonObject& jo);
     ~compsec_containerat(){}
+    compsec_containerat* clone();
     bool attempt();
     std::string save();
-    int itemx, itemy;
     bool wt, soft, empty;
     std::string it;
 };
@@ -220,27 +269,28 @@ public:
 class compact
 {
 protected:
-    compact(){}
-
+    compact(int x = INT_MIN, int y = INT_MIN):tarx(x), tary(y){}
     computer* c;
+    int tarx, tary;
 public:
     virtual ~compact(){}
+    virtual compact* clone() = 0;
     virtual void go() = 0;
     virtual std::string save() = 0;
     void set_computer(computer* comp){c=comp;}
+    void rotate(int turns);
 };
 
 class compact_chter : public compact
 {
 public:
-    compact_chter(int x, int y, std::string terrain) : terx(x), tery(y), ter(terrain){}
+    compact_chter(int x, int y, std::string terrain) : compact(x, y), ter(terrain){}
     compact_chter(std::stringstream& stream);
     compact_chter(JsonObject& jo);
     ~compact_chter(){}
+    compact_chter* clone();
     void go();
     std::string save();
-    int terx;
-    int tery;
     std::string ter;
 };
 
@@ -251,6 +301,7 @@ public:
     compact_msg(std::stringstream& stream);
     compact_msg(JsonObject& jo);
     ~compact_msg(){}
+    compact_msg* clone();
     void go();
     std::string save();
     std::string msg;
@@ -263,6 +314,7 @@ public:
     compact_chlvl(std::stringstream& stream);
     compact_chlvl(JsonObject& jo);
     ~compact_chlvl(){}
+    compact_chlvl* clone();
     void go();
     std::string save();
     int z;
@@ -275,6 +327,7 @@ public:
     compact_noise(std::stringstream& stream);
     compact_noise(JsonObject& jo);
     ~compact_noise(){}
+    compact_noise* clone();
     void go();
     std::string save();
     int vol;
@@ -284,28 +337,26 @@ public:
 class compact_mon : public compact
 {
 public:
-    compact_mon(int x, int y, std::string monster) : monx(x), mony(y), mon(monster) {}
+    compact_mon(int x, int y, std::string monster) : compact(x, y), mon(monster) {}
     compact_mon(std::stringstream& stream);
     compact_mon(JsonObject& jo);
     ~compact_mon(){}
+    compact_mon* clone();
     void go();
     std::string save();
-    int monx;
-    int mony;
     std::string mon;
 };
 
 class compact_item : public compact
 {
 public:
-    compact_item(int x, int y, std::string item, int quantity) : itemx(x), itemy(y), it(item), count(quantity) {}
+    compact_item(int x, int y, std::string item, int quantity) : compact(x, y), it(item), count(quantity) {}
     compact_item(std::stringstream& stream);
     compact_item(JsonObject& jo);
     ~compact_item(){}
+    compact_item* clone();
     void go();
     std::string save();
-    int itemx;
-    int itemy;
     std::string it;
     int count;
 };
@@ -313,13 +364,13 @@ public:
 class compact_fill : public compact
 {
 public:
-    compact_fill(int x, int y, std::string item, int charges) : itemx(x), itemy(y), it(item), amt(charges) {}
+    compact_fill(int x, int y, std::string item, int charges) : compact(x, y), it(item), amt(charges) {}
     compact_fill(std::stringstream & stream);
     compact_fill(JsonObject& jo);
     ~compact_fill(){}
+    compact_fill* clone();
     void go();
     std::string save();
-    int itemx, itemy;
     std::string it;
     int amt;
 };
@@ -331,6 +382,7 @@ public:
     compact_map(std::stringstream& stream);
     compact_map(JsonObject& jo);
     ~compact_map(){}
+    compact_map* clone();
     void go();
     std::string save();
     int rad;
@@ -341,38 +393,38 @@ public:
 class compact_trap : public compact
 {
 public:
-    compact_trap(int x, int y, int trap) : trapx(x), trapy(y), t(trap){}
+    compact_trap(int x, int y, int trap) : compact(x, y), t(trap){}
     compact_trap(std::stringstream& stream);
     compact_trap(JsonObject& jo);
     ~compact_trap() {}
+    compact_trap* clone();
     void go();
     std::string save();
-    int trapx, trapy, t;
+    int t;
 };
 
 class compact_remtrap : public compact
 {
 public:
-    compact_remtrap(int x, int y) : trapx(x), trapy(y) {}
+    compact_remtrap(int x, int y) : compact(x, y) {}
     compact_remtrap(std::stringstream& stream);
     compact_remtrap(JsonObject& jo);
     ~compact_remtrap(){}
+    compact_remtrap* clone();
     void go();
     std::string save();
-    int trapx, trapy;
 };
 
 class compact_field : public compact
 {
 public:
-    compact_field(int x, int y, int field, char density) : fieldx(x), fieldy(y), f(field), den(density) {}
+    compact_field(int x, int y, int field, char density) : compact(x, y), f(field), den(density) {}
     compact_field(std::stringstream& stream);
     compact_field(JsonObject& jo);
     ~compact_field() {}
+    compact_field* clone();
     void go();
     std::string save();
-    int fieldx;
-    int fieldy;
     int f;
     char den;
 };
@@ -380,25 +432,27 @@ public:
 class compact_remfield : public compact
 {
 public:
-    compact_remfield(int x, int y, int field) : fieldx(x), fieldy(y), f(field){}
+    compact_remfield(int x, int y, int field) : compact(x, y), f(field){}
     compact_remfield(std::stringstream& stream);
     compact_remfield(JsonObject& jo);
     ~compact_remfield(){}
+    compact_remfield* clone();
     void go();
     std::string save();
-    int fieldx, fieldy, f;
+    int f;
 };
 
 class compact_exp : public compact
 {
 public:
-    compact_exp(int x, int y, int power, int shrapnel, bool startfire) : expx(x), expy(y), pwr(power), shrap(shrapnel), fire(startfire){}
+    compact_exp(int x, int y, int power, int shrapnel, bool startfire) : compact(x, y), pwr(power), shrap(shrapnel), fire(startfire){}
     compact_exp(std::stringstream& stream);
     compact_exp(JsonObject& jo);
     ~compact_exp(){}
+    compact_exp* clone();
     void go();
     std::string save();
-    int expx, expy, pwr, shrap;
+    int pwr, shrap;
     bool fire;
 };
 
@@ -409,6 +463,7 @@ public:
     compact_hurt(std::stringstream& stream);
     compact_hurt(JsonObject& jo);
     ~compact_hurt(){}
+    compact_hurt* clone();
     void go();
     std::string save();
     int min, max;
@@ -422,6 +477,7 @@ public:
     compact_killmon(std::stringstream &stream);
     compact_killmon(JsonObject& jo);
     ~compact_killmon(){}
+    compact_killmon* clone();
     void go();
     std::string save();
     int tlx, tly, brx, bry;
@@ -435,6 +491,7 @@ public:
     compact_disease(std::stringstream& stream);
     compact_disease(JsonObject& jo);
     ~compact_disease(){}
+    compact_disease* clone();
     void go();
     std::string save();
     std::string d;
@@ -448,6 +505,7 @@ public:
     compact_pain(std::stringstream& stream);
     compact_pain(JsonObject& jo);
     ~compact_pain(){}
+    compact_pain* clone();
     void go();
     std::string save();
     int min, max;
@@ -457,13 +515,14 @@ class compact_event : public compact
 {
 public:
     compact_event(int eventtype, int when, int faction = -1, int x = -1, int y = -1) :
-        type(eventtype), turn(when), fac(faction), eventx(x), eventy(y){}
+        compact(x, y), type(eventtype), turn(when), fac(faction){}
     compact_event(std::stringstream& stream);
     compact_event(JsonObject& jo);
     ~compact_event(){}
+    compact_event* clone();
     void go();
     std::string save();
-    int type, turn, fac, eventx, eventy;
+    int type, turn, fac;
 };
 
 class compact_cascade : public compact
@@ -473,6 +532,7 @@ public:
     compact_cascade(std::stringstream& stream){}
     compact_cascade(JsonObject& jo){}
     ~compact_cascade(){}
+    compact_cascade* clone();
     void go();
     std::string save();
 };
@@ -484,6 +544,19 @@ public:
     compact_nuke(std::stringstream& stream){}
     compact_nuke(JsonObject& jo){}
     ~compact_nuke(){}
+    compact_nuke* clone();
+    void go();
+    std::string save();
+};
+
+class compact_shutdown : public compact
+{
+public:
+    compact_shutdown(){}
+    compact_shutdown(std::stringstream& stream){}
+    compact_shutdown(JsonObject& jo){}
+    ~compact_shutdown(){}
+    compact_shutdown* clone();
     void go();
     std::string save();
 };
@@ -497,10 +570,14 @@ public:
     compopt(std::stringstream& stream);
     compopt(JsonObject& jo);
     ~compopt();
+
+    compopt& operator=(const compopt& rhs);
+
     void go();
     void add_security(compsec*);
     void add_action(compact*);
     void add_failure(compact*);
+    void rotate(int turns);
 
     std::string prompt;
 
@@ -546,6 +623,8 @@ class computer
 
         static void load_lab_note(JsonObject &jsobj);
         static void clear_lab_notes();
+
+        void rotate(int turns);
 
 
         // Difficulty of simply logging in

@@ -3546,7 +3546,7 @@
         "symbol": "6",
         "color": "blue",
         "move_cost": 0,
-        "flags": ["TRANSPARENT", "CONSOLE", "NOITEM", "INDOORS", "SHORT", "PERMEABLE],
+        "flags": ["TRANSPARENT", "CONSOLE", "NOITEM", "INDOORS", "SHORT", "PERMEABLE"],
 		"examine_action":"console",
         "deconstruct": {
             "ter_set": "t_floor",

@@ -11,6 +11,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <algorithm>
 
 std::vector<std::string> computer::lab_notes;
 int alerts = 0;
@@ -41,6 +42,101 @@ targetx = usex - compy + terx
 targety = usey - compy + tery
 */
 
+void compsec::rotate(int turns)
+{
+    turns = turns % 4;
+    // if tarx and tary are INT_MIN, they are unused.
+    if(tarx == INT_MIN || tary == INT_MIN || turns == 0){
+        return;
+    }
+    int newx = tarx;
+    int newy = tary;
+    switch(turns){
+    case 3:
+        newx = SEEX * 2 - 1 - tary;
+        newy = tarx;
+        break;
+    case 2:
+        newx = SEEX * 2 - 1 - tarx;
+        newy = SEEY * 2 - 1 - tary;
+        break;
+    case 1:
+        newx = tary;
+        newy = SEEY * 2 - 1 - tarx;
+        break;
+    default:
+        break;
+    }
+    tarx = newx;
+    tary = newy;
+}
+
+compsec_chargecard::compsec_chargecard(std::stringstream& stream)
+{
+    stream >> charges;
+}
+
+compsec_chargecard::compsec_chargecard(JsonObject& jo)
+{
+    charges = jo.get_int("charges");
+}
+
+compsec_chargecard* compsec_chargecard::clone()
+{
+    return new compsec_chargecard(this->charges);
+}
+
+bool compsec_chargecard::attempt()
+{
+    item *card;
+    if (!g->u.has_charges("cash_card", 1)) {
+        return false; // does not have a cash card with charges
+    }
+    int pos = g->inv(_("Select cash card"));
+    card = &(g->u.i_at(pos));
+
+    if (charges > card->charges){
+        return false; // cash card does not have enough charges
+    }
+
+    card->charges -= charges;
+    return true;
+}
+
+std::string compsec_chargecard::save()
+{
+    std::stringstream data;
+    data << "charge " << charges << " ";
+    return data.str();
+}
+
+compsec_bionic::compsec_bionic(std::stringstream& stream)
+{
+    stream >> bionic;
+}
+
+compsec_bionic::compsec_bionic(JsonObject& jo)
+{
+    bionic = jo.get_string("bionic");
+}
+
+compsec_bionic* compsec_bionic::clone()
+{
+    return new compsec_bionic(this->bionic);
+}
+
+bool compsec_bionic::attempt()
+{
+    return g->u.has_bionic((bionic_id)bionic);
+}
+
+std::string compsec_bionic::save()
+{
+    std::stringstream data;
+    data << "bio " << bionic << " ";
+    return data.str();
+}
+
 compsec_skillcheck::compsec_skillcheck(std::stringstream& stream)
 {
     stream >> skill >> diff;
@@ -51,6 +147,11 @@ compsec_skillcheck::compsec_skillcheck(JsonObject& jo)
 {
     skill = jo.get_string("skill");
     diff = jo.get_int("difficulty");
+}
+
+compsec_skillcheck* compsec_skillcheck::clone()
+{
+    return new compsec_skillcheck(this->skill, this->diff);
 }
 
 // come up with a good skill independent way to calculate
@@ -88,6 +189,11 @@ compsec_trait_or_hack::compsec_trait_or_hack(JsonObject& jo)
 {
     t = jo.get_string("trait");
     diff = jo.get_int("difficulty");
+}
+
+compsec_trait_or_hack* compsec_trait_or_hack::clone()
+{
+    return new compsec_trait_or_hack(this->t, this->diff);
 }
 
 bool compsec_trait_or_hack::attempt()
@@ -132,6 +238,11 @@ compsec_pass_or_hack::compsec_pass_or_hack(JsonObject& jo)
     diff = jo.get_int("difficulty");
 }
 
+compsec_pass_or_hack* compsec_pass_or_hack::clone()
+{
+    return new compsec_pass_or_hack(this->pass, this->diff);
+}
+
 bool compsec_pass_or_hack::attempt()
 {
     if(c->query_bool("This computer is password protected.  Attempt to hack?")){
@@ -171,6 +282,11 @@ compsec_trait::compsec_trait(JsonObject& jo)
     t = jo.get_string("trait");
 }
 
+compsec_trait* compsec_trait::clone()
+{
+    return new compsec_trait(this->t);
+}
+
 bool compsec_trait::attempt()
 {
     return g->u.has_trait(t);
@@ -191,6 +307,11 @@ compsec_pass::compsec_pass(std::stringstream& stream)
 compsec_pass::compsec_pass(JsonObject& jo)
 {
     pass = jo.get_string("pass");
+}
+
+compsec_pass* compsec_pass::clone()
+{
+    return new compsec_pass(this->pass);
 }
 
 bool compsec_pass::attempt()
@@ -214,6 +335,11 @@ compsec_hack::compsec_hack(std::stringstream &stream)
 compsec_hack::compsec_hack(JsonObject& jo)
 {
     diff = jo.get_int("diff", 1);
+}
+
+compsec_hack* compsec_hack::clone()
+{
+    return new compsec_hack(this->diff);
 }
 
 bool compsec_hack::attempt()
@@ -251,6 +377,11 @@ compsec_item::compsec_item(JsonObject& jo)
     num = jo.get_int("count");
 }
 
+compsec_item* compsec_item::clone()
+{
+    return new compsec_item(this->it, this->num);
+}
+
 bool compsec_item::attempt()
 {
     if(g->u.has_amount(it, num))
@@ -273,20 +404,25 @@ std::string compsec_item::save()
 
 compsec_itemat::compsec_itemat(std::stringstream &stream)
 {
-    stream >> it >> itemx >> itemy;
+    stream >> it >> tarx >> tary;
 }
 
 compsec_itemat::compsec_itemat(JsonObject& jo)
 {
     it = jo.get_string("item");
-    itemx = jo.get_int("x");
-    itemy = jo.get_int("y");
+    tarx = jo.get_int("x");
+    tary = jo.get_int("y");
+}
+
+compsec_itemat* compsec_itemat::clone()
+{
+    return new compsec_itemat(this->it, this->tarx, this->tary);
 }
 
 bool compsec_itemat::attempt()
 {
-    int x = c->usex - c->compx + itemx;
-    int y = c->usey - c->compy + itemy;
+    int x = c->usex - c->compx + tarx;
+    int y = c->usey - c->compy + tary;
     std::vector<item> items = g->m.i_at(x, y);
 
     for(int i = 0; i < items.size(); i++)
@@ -302,13 +438,13 @@ bool compsec_itemat::attempt()
 std::string compsec_itemat::save()
 {
     std::stringstream data;
-    data << "itemat " << it << " " << itemx << " " << itemy << " ";
+    data << "itemat " << it << " " << tarx << " " << tary << " ";
     return data.str();
 }
 
 compsec_containerat::compsec_containerat(std::stringstream &stream)
 {
-    stream >> itemx >> itemy >> wt >> soft >> empty;
+    stream >> tarx >> tary >> wt >> soft >> empty;
     if(!empty)
     {
         stream >> it;
@@ -317,14 +453,19 @@ compsec_containerat::compsec_containerat(std::stringstream &stream)
 
 compsec_containerat::compsec_containerat(JsonObject& jo)
 {
-    itemx = jo.get_int("x");
-    itemy = jo.get_int("y");
+    tarx = jo.get_int("x");
+    tary = jo.get_int("y");
     wt = jo.get_bool("watertight");
     soft = jo.get_bool("software");
     empty = jo.get_bool("empty");
     if(!empty){
         it = jo.get_string("contents");
     }
+}
+
+compsec_containerat* compsec_containerat::clone()
+{
+    return new compsec_containerat(this->tarx, this->tary, this->wt, this->soft, this->empty, this->it);
 }
 
 bool compsec_containerat::attempt()
@@ -334,8 +475,8 @@ bool compsec_containerat::attempt()
     // req. contents & item wrong contents
 
     // if watertight, ignore software, vice versa
-    int x = c->usex - c->compx + itemx;
-    int y = c->usey - c->compy + itemy;
+    int x = c->usex - c->compx + tarx;
+    int y = c->usey - c->compy + tary;
     if(g->m.i_at(x, y).size() == 0)
     {
         return false;
@@ -375,7 +516,7 @@ bool compsec_containerat::attempt()
 std::string compsec_containerat::save()
 {
     std::stringstream data;
-    data << "cnat " << itemx << " " << itemy << " " << wt << " " <<
+    data << "cnat " << tarx << " " << tary << " " << wt << " " <<
             soft << " " << empty << " ";
     if(!empty)
     {
@@ -384,29 +525,64 @@ std::string compsec_containerat::save()
     return data.str();
 }
 
+void compact::rotate(int turns)
+{
+    turns = turns % 4;
+    // if tarx and tary are INT_MIN, they are unused.
+    if(tarx == INT_MIN || tary == INT_MIN || turns == 0){
+        return;
+    }
+    int newx = tarx;
+    int newy = tary;
+    switch(turns){
+    case 1: //_east
+        newx = -1 * tary;
+        newy = tarx;
+        break;
+    case 2: //_south
+        newx = -1 * tarx;
+        newy = -1 * tary;
+        break;
+    case 3: //_west
+        newx = tary;
+        newy = -1 * tarx;
+        break;
+    default:
+        break;
+    }
+    tarx = newx;
+    tary = newy;
+}
+
 compact_chter::compact_chter(std::stringstream &stream)
 {
-    stream >> terx >> tery >> ter;
+    stream >> tarx >> tary >> ter;
 }
 
 compact_chter::compact_chter(JsonObject& jo)
 {
-    terx = jo.get_int("x");
-    tery = jo.get_int("y");
+    tarx = jo.get_int("x");
+    tary = jo.get_int("y");
     ter = jo.get_string("ter");
+}
+
+compact_chter* compact_chter::clone()
+{
+    compact_chter* t = new compact_chter(this->tarx, this->tary, this->ter);
+    return t;
 }
 
 void compact_chter::go()
 {
-    int x = c->usex - c->compx + terx;
-    int y = c->usey - c->compy + tery;
+    int x = c->usex - c->compx + tarx;
+    int y = c->usey - c->compy + tary;
     g->m.ter_set(x, y, ter);
 }
 
 std::string compact_chter::save()
 {
     std::stringstream data;
-    data << "cht " << terx << " " << tery << " " << ter << " ";
+    data << "cht " << tarx << " " << tary << " " << ter << " ";
     return data.str();
 }
 
@@ -419,6 +595,11 @@ compact_msg::compact_msg(std::stringstream &stream)
 compact_msg::compact_msg(JsonObject &jo)
 {
     msg = jo.get_string("message");
+}
+
+compact_msg* compact_msg::clone()
+{
+    return new compact_msg(this->msg);
 }
 
 void compact_msg::go()
@@ -442,6 +623,11 @@ compact_chlvl::compact_chlvl(std::stringstream &stream)
 compact_chlvl::compact_chlvl(JsonObject &jo)
 {
     z = jo.get_int("z");
+}
+
+compact_chlvl* compact_chlvl::clone()
+{
+    return new compact_chlvl(this->z);
 }
 
 void compact_chlvl::go()
@@ -468,10 +654,14 @@ compact_noise::compact_noise(JsonObject &jo)
     desc = jo.get_string("message");
 }
 
+compact_noise* compact_noise::clone()
+{
+    return new compact_noise(this->vol, this->desc);
+}
+
 void compact_noise::go()
 {
-    // use consoles, or specify location?
-    g->sound(c->compx, c->compy, vol, desc);
+    g->sound(c->usex, c->usey, vol, desc);
 }
 
 std::string compact_noise::save()
@@ -483,20 +673,25 @@ std::string compact_noise::save()
 
 compact_mon::compact_mon(std::stringstream &stream)
 {
-    stream >> monx >> mony >> mon;
+    stream >> tarx >> tary >> mon;
 }
 
 compact_mon::compact_mon(JsonObject &jo)
 {
     mon = jo.get_string("monster");
-    monx = jo.get_int("x");
-    mony = jo.get_int("y");
+    tarx = jo.get_int("x");
+    tary = jo.get_int("y");
+}
+
+compact_mon* compact_mon::clone()
+{
+    return new compact_mon(this->tarx, this->tary, this->mon);
 }
 
 void compact_mon::go()
 {
-    int x = c->usex - c->compx + monx;
-    int y = c->usey - c->compy + mony;
+    int x = c->usex - c->compx + tarx;
+    int y = c->usey - c->compy + tary;
 
     monster newmon(GetMType(mon));
     newmon.spawn(x, y);
@@ -506,71 +701,81 @@ void compact_mon::go()
 std::string compact_mon::save()
 {
     std::stringstream data;
-    data << "mon " << monx << " " << mony << " " << mon << " ";
+    data << "mon " << tarx << " " << tary << " " << mon << " ";
     return data.str();
 }
 
 compact_item::compact_item(std::stringstream &stream)
 {
-    stream >> itemx >> itemy >> it >> count;
+    stream >> tarx >> tary >> it >> count;
 }
 
 compact_item::compact_item(JsonObject &jo)
 {
     it = jo.get_string("item");
-    itemx = jo.get_int("x");
-    itemy = jo.get_int("y");
+    tarx = jo.get_int("x");
+    tary = jo.get_int("y");
     count = jo.get_int("count");
+}
+
+compact_item* compact_item::clone()
+{
+    return new compact_item(this->tarx, this->tary, this->it, this->count);
 }
 
 void compact_item::go()
 {
-    int x = c->usex - c->compx + itemx;
-    int y = c->usey - c->compy + itemy;
+    int x = c->usex - c->compx + tarx;
+    int y = c->usey - c->compy + tary;
     g->m.spawn_item(x, y, it);
 }
 
 std::string compact_item::save()
 {
     std::stringstream data;
-    data << "itm " << itemx << " " << itemy << " " << it << " " << count << " ";
+    data << "itm " << tarx << " " << tary << " " << it << " " << count << " ";
     return data.str();
 }
 
 compact_fill::compact_fill(std::stringstream &stream)
 {
-    stream >> itemx >> itemy >> it >> amt;
+    stream >> tarx >> tary >> it >> amt;
 }
 
 compact_fill::compact_fill(JsonObject &jo)
 {
     it = jo.get_string("item");
     amt = jo.get_int("amount");
-    itemx = jo.get_int("x");
-    itemy = jo.get_int("y");
+    tarx = jo.get_int("x");
+    tary = jo.get_int("y");
+}
+
+compact_fill* compact_fill::clone()
+{
+    return new compact_fill(this->tarx, this->tary, this->it, this->amt);
 }
 
 void compact_fill::go()
 {
-    int x = c->usex - c->compx + itemx;
-    int y = c->usey - c->compy + itemy;
-    item *container = &(g->m.i_at(x, y)[0]);
-    item contents(it, calendar::turn);
-
-    if(contents.is_software())
-    {
-        container->put_in(contents);
-    }
-    else if(container->is_container())
-    {
-        container->put_in(contents);
-    }
+//    int x = c->usex - c->compx + tarx;
+//    int y = c->usey - c->compy + tary;
+//    item *container = &(g->m.i_at(x, y)[0]);
+//    item contents(it, calendar::turn);
+//
+//    if(contents.is_software())
+//    {
+//        container->put_in(contents);
+//    }
+//    else if(container->is_container())
+//    {
+//        container->put_in(contents);
+//    }
 }
 
 std::string compact_fill::save()
 {
     std::stringstream data;
-    data << "fil " << itemx << " " << itemy << " " << it << " " << amt << " ";
+    data << "fil " << tarx << " " << tary << " " << it << " " << amt << " ";
     return data.str();
 }
 
@@ -594,6 +799,11 @@ compact_map::compact_map(JsonObject &jo)
     while(typeArray.has_more()){
         types.push_back(typeArray.next_string());
     }
+}
+
+compact_map* compact_map::clone()
+{
+    return new compact_map(this->rad, this->z, this->types);
 }
 
 void compact_map::go()
@@ -661,7 +871,7 @@ std::string compact_map::save()
 
 compact_trap::compact_trap(std::stringstream &stream)
 {
-    stream >> trapx >> trapy >> t;
+    stream >> tarx >> tary >> t;
 }
 
 compact_trap::compact_trap(JsonObject &jo)
@@ -672,14 +882,19 @@ compact_trap::compact_trap(JsonObject &jo)
         t = tr_null;
     }
 
-    trapx = jo.get_int("x");
-    trapy = jo.get_int("y");
+    tarx = jo.get_int("x");
+    tary = jo.get_int("y");
+}
+
+compact_trap* compact_trap::clone()
+{
+    return new compact_trap(this->tarx, this->tary, this->t);
 }
 
 void compact_trap::go()
 {
-    int x = c->usex - c->compx + trapx;
-    int y = c->usey - c->compy + trapy;
+    int x = c->usex - c->compx + tarx;
+    int y = c->usey - c->compy + tary;
 
     g->m.add_trap(x, y, (trap_id)t);
 }
@@ -687,92 +902,106 @@ void compact_trap::go()
 std::string compact_trap::save()
 {
     std::stringstream data;
-    data << "trp " << trapx << " " << trapy << " " << t << " ";
+    data << "trp " << tarx << " " << tary << " " << t << " ";
     return data.str();
 }
 
 compact_remtrap::compact_remtrap(std::stringstream &stream)
 {
-    stream >> trapx >> trapy;
+    stream >> tarx >> tary;
 }
 
 compact_remtrap::compact_remtrap(JsonObject &jo)
 {
-    trapx = jo.get_int("x");
-    trapy = jo.get_int("y");
+    tarx = jo.get_int("x");
+    tary = jo.get_int("y");
+}
+
+compact_remtrap* compact_remtrap::clone()
+{
+    return new compact_remtrap(this->tarx, this->tary);
 }
 
 void compact_remtrap::go()
 {
-    int x = c->usex - c->compx + trapx;
-    int y = c->usey - c->compy + trapy;
+    int x = c->usex - c->compx + tarx;
+    int y = c->usey - c->compy + tary;
     g->m.remove_trap(x, y);
 }
 
 std::string compact_remtrap::save()
 {
     std::stringstream data;
-    data << "rmt " << trapx << " " << trapy << " ";
+    data << "rmt " << tarx << " " << tary << " ";
     return data.str();
 }
 
 compact_field::compact_field(std::stringstream &stream)
 {
-    stream >> fieldx >> fieldy >> f >> den;
+    stream >> tarx >> tary >> f >> den;
 }
 
 compact_field::compact_field(JsonObject &jo)
 {
     f = field_from_ident(jo.get_string("field"));
     den = jo.get_int("density");
-    fieldx = jo.get_int("x");
-    fieldy = jo.get_int("y");
+    tarx = jo.get_int("x");
+    tary = jo.get_int("y");
+}
+
+compact_field* compact_field::clone()
+{
+    return new compact_field(this->tarx, this->tary, this->f, this->den);
 }
 
 void compact_field::go()
 {
-    int x = c->usex - c->compx + fieldx;
-    int y = c->usey - c->compy + fieldy;
+    int x = c->usex - c->compx + tarx;
+    int y = c->usey - c->compy + tary;
     g->m.add_field(x, y, (field_id)f, den);
 }
 
 std::string compact_field::save()
 {
     std::stringstream data;
-    data << "fld " << fieldx << " " << fieldy << " " << f << " " << den << " ";
+    data << "fld " << tarx << " " << tary << " " << f << " " << den << " ";
     return data.str();
 }
 
 compact_remfield::compact_remfield(std::stringstream &stream)
 {
-    stream >> fieldx >> fieldy >> f;
+    stream >> tarx >> tary >> f;
 }
 
 compact_remfield::compact_remfield(JsonObject &jo)
 {
     f = field_from_ident(jo.get_string("field"));
-    fieldx = jo.get_int("x");
-    fieldy = jo.get_int("y");
+    tarx = jo.get_int("x");
+    tary = jo.get_int("y");
 }
 
+compact_remfield* compact_remfield::clone()
+{
+    return new compact_remfield(this->tarx, this->tary, this->f);
+}
 
 void compact_remfield::go()
 {
-    int x = c->usex - c->compx + fieldx;
-    int y = c->usey - c->compy + fieldy;
+    int x = c->usex - c->compx + tarx;
+    int y = c->usey - c->compy + tary;
     g->m.remove_field(x, y, (field_id)f);
 }
 
 std::string compact_remfield::save()
 {
     std::stringstream data;
-    data << "rmf " << fieldx << " " << fieldy << " " << f << " ";
+    data << "rmf " << tarx << " " << tary << " " << f << " ";
     return data.str();
 }
 
 compact_exp::compact_exp(std::stringstream &stream)
 {
-    stream >> expx >> expy >> pwr >> shrap >> fire;
+    stream >> tarx >> tary >> pwr >> shrap >> fire;
 }
 
 compact_exp::compact_exp(JsonObject &jo)
@@ -780,21 +1009,26 @@ compact_exp::compact_exp(JsonObject &jo)
     pwr = jo.get_int("power");
     shrap = jo.get_int("shrapnel");
     fire = jo.get_bool("fiery");
-    expx = jo.get_int("x");
-    expy = jo.get_int("y");
+    tarx = jo.get_int("x");
+    tary = jo.get_int("y");
+}
+
+compact_exp* compact_exp::clone()
+{
+    return new compact_exp(this->tarx, this->tary, this->pwr, this->shrap, this->fire);
 }
 
 void compact_exp::go()
 {
-    int x = c->usex - c->compx + expx;
-    int y = c->usey - c->compy + expy;
+    int x = c->usex - c->compx + tarx;
+    int y = c->usey - c->compy + tary;
     g->explosion(x, y, pwr, shrap, fire);
 }
 
 std::string compact_exp::save()
 {
     std::stringstream data;
-    data << "exp " << expx << " " << expy << " " << pwr << " " << shrap << " " << fire << " ";
+    data << "exp " << tarx << " " << tary << " " << pwr << " " << shrap << " " << fire << " ";
     return data.str();
 }
 
@@ -807,6 +1041,11 @@ compact_hurt::compact_hurt(JsonObject &jo)
 {
     min = jo.get_array("damage").next_int();
     max = jo.get_array("damage").next_int();
+}
+
+compact_hurt* compact_hurt::clone()
+{
+    return new compact_hurt(this->min, this->max);
 }
 
 void compact_hurt::go()
@@ -832,6 +1071,11 @@ compact_killmon::compact_killmon(JsonObject &jo)
     tly = jo.get_array("topleft").next_int();
     brx = jo.get_array("bottomright").next_int();
     bry = jo.get_array("bottomright").next_int();
+}
+
+compact_killmon* compact_killmon::clone()
+{
+    return new compact_killmon(this->tlx, this->tly, this->brx, this->bry);
 }
 
 void compact_killmon::go()
@@ -873,6 +1117,11 @@ compact_disease::compact_disease(JsonObject &jo)
     dur = jo.get_int("duration");
 }
 
+compact_disease* compact_disease::clone()
+{
+    return new compact_disease(this->d, this->dur);
+}
+
 // going to assume just basic diseases for now, disease/duration only
 void compact_disease::go()
 {
@@ -897,6 +1146,11 @@ compact_pain::compact_pain(JsonObject &jo)
     max = jo.get_array("pain").next_int();
 }
 
+compact_pain* compact_pain::clone()
+{
+    return new compact_pain(this->min, this->max);
+}
+
 void compact_pain::go()
 {
     g->u.pain += rng(min, max);
@@ -911,7 +1165,7 @@ std::string compact_pain::save()
 
 compact_event::compact_event(std::stringstream &stream)
 {
-    stream >> type >> turn >> fac >> eventx >> eventy;
+    stream >> type >> turn >> fac >> tarx >> tary;
 }
 
 compact_event::compact_event(JsonObject &jo)
@@ -920,26 +1174,33 @@ compact_event::compact_event(JsonObject &jo)
     turn = jo.get_int("turn");
     fac = jo.get_int("faction", -1);
     if(jo.has_int("x")){
-        eventx = jo.get_int("x");
-        eventy = jo.get_int("y");
-    } else {
-        eventx = INT_MIN;
-        eventy = INT_MIN;
+        tarx = jo.get_int("x");
+        tary = jo.get_int("y");
     }
+}
+
+compact_event* compact_event::clone()
+{
+    return new compact_event(this->type, this->turn, this->fac, this->tarx, this->tary);
 }
 
 void compact_event::go()
 {
-    int x = c->usex - c->compx + eventx;
-    int y = c->usey - c->compy + eventy;
+    int x = c->usex - c->compx + tarx;
+    int y = c->usey - c->compy + tary;
     g->add_event((event_type)type, calendar::turn + turn, fac, x, y);
 }
 
 std::string compact_event::save()
 {
     std::stringstream data;
-    data << "evt " << type << " " << turn << " " << fac << " " << eventx << " " << eventy << " ";
+    data << "evt " << type << " " << turn << " " << fac << " " << tarx << " " << tary << " ";
     return data.str();
+}
+
+compact_cascade* compact_cascade::clone()
+{
+    return new compact_cascade();
 }
 
 void compact_cascade::go()
@@ -974,6 +1235,11 @@ void compact_cascade::go()
 std::string compact_cascade::save()
 {
     return "rcs ";
+}
+
+compact_nuke* compact_nuke::clone()
+{
+    return new compact_nuke();
 }
 
 void compact_nuke::go()
@@ -1080,6 +1346,22 @@ std::string compact_nuke::save()
     return "nuk ";
 }
 
+compact_shutdown* compact_shutdown::clone()
+{
+    return new compact_shutdown();
+}
+
+void compact_shutdown::go()
+{
+    g->m.ter_set(c->usex, c->usey, "t_console_broken");
+    // todo: force exit from computer
+}
+
+std::string compact_shutdown::save()
+{
+    return "sht ";
+}
+
 compopt::compopt(std::stringstream &stream)
 {
     int numsec, numact, numfail;
@@ -1089,24 +1371,15 @@ compopt::compopt(std::stringstream &stream)
     {
         std::string security;
         stream >> security;
-        if(security == "pass")
-        {
+        if(security == "pass") {
             add_security(new compsec_pass(stream));
-        }
-        if(security == "item")
-        {
+        } else if(security == "item") {
             add_security(new compsec_item(stream));
-        }
-        if(security == "hack")
-        {
+        } else if(security == "hack") {
             add_security(new compsec_hack(stream));
-        }
-        if(security == "itemat")
-        {
+        } else if(security == "itemat") {
             add_security(new compsec_itemat(stream));
-        }
-        if(security == "trait")
-        {
+        } else if(security == "trait") {
             add_security(new compsec_trait(stream));
         }
     }
@@ -1115,60 +1388,33 @@ compopt::compopt(std::stringstream &stream)
     {
         std::string action;
         stream >> action;
-        if(action == "cht")
-        {
+        if(action == "cht") {
             add_action(new compact_chter(stream));
-        }
-        if(action == "msg")
-        {
+        } else if(action == "msg") {
             add_action(new compact_msg(stream));
-        }
-        if(action == "map")
-        {
+        } else if(action == "map") {
             add_action(new compact_map(stream));
-        }
-        if(action == "itm")
-        {
+        } else if(action == "itm") {
             add_action(new compact_item(stream));
-        }
-        if(action == "mon")
-        {
+        } else if(action == "mon") {
             add_action(new compact_mon(stream));
-        }
-        if(action == "chz")
-        {
+        } else if(action == "chz") {
             add_action(new compact_chlvl(stream));
-        }
-        if(action == "snd")
-        {
+        } else if(action == "snd") {
             add_action(new compact_noise(stream));
-        }
-        if(action == "kil")
-        {
+        } else if(action == "kil") {
             add_action(new compact_killmon(stream));
-        }
-        if(action == "trp")
-        {
+        } else if(action == "trp") {
             add_action(new compact_trap(stream));
-        }
-        if(action == "fld")
-        {
+        } else if(action == "fld") {
             add_action(new compact_field(stream));
-        }
-        if(action == "exp")
-        {
+        } else if(action == "exp") {
             add_action(new compact_exp(stream));
-        }
-        if(action == "hrt")
-        {
+        } else if(action == "hrt") {
             add_action(new compact_hurt(stream));
-        }
-        if(action == "rmf")
-        {
+        } else if(action == "rmf") {
             add_action(new compact_remfield(stream));
-        }
-        if(action == "rmt")
-        {
+        } else if(action == "rmt") {
             add_action(new compact_remtrap(stream));
         }
     }
@@ -1177,60 +1423,33 @@ compopt::compopt(std::stringstream &stream)
     {
         std::string action;
         stream >> action;
-        if(action == "cht")
-        {
+        if(action == "cht") {
             add_failure(new compact_chter(stream));
-        }
-        if(action == "msg")
-        {
+        } else if(action == "msg") {
             add_failure(new compact_msg(stream));
-        }
-        if(action == "map")
-        {
+        } else if(action == "map") {
             add_failure(new compact_map(stream));
-        }
-        if(action == "itm")
-        {
+        } else if(action == "itm") {
             add_failure(new compact_item(stream));
-        }
-        if(action == "mon")
-        {
+        } else if(action == "mon") {
             add_failure(new compact_mon(stream));
-        }
-        if(action == "chz")
-        {
+        } else if(action == "chz") {
             add_failure(new compact_chlvl(stream));
-        }
-        if(action == "snd")
-        {
+        } else if(action == "snd") {
             add_failure(new compact_noise(stream));
-        }
-        if(action == "kil")
-        {
+        } else if(action == "kil") {
             add_failure(new compact_killmon(stream));
-        }
-        if(action == "trp")
-        {
+        } else if(action == "trp") {
             add_failure(new compact_trap(stream));
-        }
-        if(action == "fld")
-        {
+        } else if(action == "fld") {
             add_failure(new compact_field(stream));
-        }
-        if(action == "exp")
-        {
+        } else if(action == "exp") {
             add_failure(new compact_exp(stream));
-        }
-        if(action == "hrt")
-        {
+        } else if(action == "hrt") {
             add_failure(new compact_hurt(stream));
-        }
-        if(action == "rmf")
-        {
+        } else if(action == "rmf") {
             add_failure(new compact_remfield(stream));
-        }
-        if(action == "rmt")
-        {
+        } else if(action == "rmt") {
             add_failure(new compact_remtrap(stream));
         }
     }
@@ -1295,7 +1514,7 @@ compopt::compopt(JsonObject& jo)
         } else if(type == "rmt"){
             add_action(new compact_remtrap(successObject));
         } else if(type == "shutdown"){
-            // todo
+            add_action(new compact_shutdown());
         } else {
             debugmsg("Computer action type not found %s", type.c_str());
         }
@@ -1335,7 +1554,7 @@ compopt::compopt(JsonObject& jo)
         } else if(type == "rmt"){
             add_failure(new compact_remtrap(failureObject));
         } else if(type == "shutdown"){
-            // todo
+            add_failure(new compact_shutdown());
         } else {
             debugmsg("Computer action type not found %s", type.c_str());
         }
@@ -1353,6 +1572,23 @@ compopt::~compopt()
 //    for(auto it = security.begin(); it != security.end(); ++it){
 //        delete *it;
 //    }
+}
+
+compopt& compopt::operator=(const compopt& rhs)
+{
+    if(this != &rhs){
+        for(auto act : rhs.actions){
+            this->add_action(act->clone());
+        }
+        for(auto sec : rhs.security){
+            this->add_security(sec->clone());
+        }
+        for(auto fail : rhs.failures){
+            this->add_failure(fail->clone());
+        }
+        this->prompt = rhs.prompt;
+    }
+    return *this;
 }
 
 void compopt::go()
@@ -1395,6 +1631,19 @@ void compopt::add_action(compact *action)
 void compopt::add_failure(compact *action)
 {
     failures.push_back(action);
+}
+
+void compopt::rotate(int turns)
+{
+    for(auto sec : security){
+        sec->rotate(turns);
+    }
+    for(auto act : actions){
+        act->rotate(turns);
+    }
+    for(auto fail : failures){
+        fail->rotate(turns);
+    }
 }
 
 std::string compopt::save()
@@ -1470,7 +1719,11 @@ computer &computer::operator=(const computer &rhs)
     mission_id = rhs.mission_id;
     options = rhs.options;
     failures = rhs.failures;
-    compopts = rhs.compopts;
+    for(auto opt : rhs.compopts){
+        compopt o("");
+        o = opt;
+        this->compopts.push_back(o);
+    }
     prompt = rhs.prompt;
     compx = rhs.compx;
     compy = rhs.compy;
@@ -1746,6 +1999,13 @@ void computer::load_data(std::string data)
     for (int n = 0; n < failsize; n++) {
         dump >> tmpfail;
         failures.push_back(computer_failure(tmpfail));
+    }
+}
+
+void computer::rotate(int turns)
+{
+    for(auto opt : compopts){
+        opt.rotate(turns);
     }
 }
 

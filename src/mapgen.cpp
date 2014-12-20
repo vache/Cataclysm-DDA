@@ -11529,10 +11529,12 @@ void map::rotate(int turns)
     for(auto comp : tmpcomp){
         point p = comp.first;
         computer c = comp.second;
+
+        c.rotate(turns);
+
         int lx, ly;
         submap* sm = get_submap_at(p.x, p.y, lx, ly);
         sm->computers[point(lx, ly)] = c;
-        debugmsg("computer rotated to: (%d, %d)", p.x, p.y);
     }
 
     //Next, spawn points
