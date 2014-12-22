@@ -16,6 +16,35 @@
 std::vector<std::string> computer::lab_notes;
 int alerts = 0;
 
+void rotate_helper(int turns, int& x, int& y)
+{
+    turns = turns % 4;
+    // if x and y are INT_MIN, they are unused.
+    if(x == INT_MIN || y == INT_MIN || turns == 0){
+        return;
+    }
+    int newx = x;
+    int newy = y;
+    switch(turns){
+    case 1:
+        newx = SEEX * 2 - 1 - y;
+        newy = x;
+        break;
+    case 2:
+        newx = SEEX * 2 - 1 - x;
+        newy = SEEY * 2 - 1 - y;
+        break;
+    case 3:
+        newx = y;
+        newy = SEEY * 2 - 1 - x;
+        break;
+    default:
+        break;
+    }
+    x = newx;
+    y = newy;
+}
+
 /*
 in mapgen, generation uses tinymap class which is 2x2 submaps, so all coordinates are relative to a
 single 24x24 map tile area.  during gameplay, the reality bubble map is used, which is much larger
@@ -44,31 +73,34 @@ targety = usey - compy + tery
 
 void compsec::rotate(int turns)
 {
-    turns = turns % 4;
-    // if tarx and tary are INT_MIN, they are unused.
-    if(tarx == INT_MIN || tary == INT_MIN || turns == 0){
-        return;
-    }
-    int newx = tarx;
-    int newy = tary;
-    switch(turns){
-    case 3:
-        newx = SEEX * 2 - 1 - tary;
-        newy = tarx;
-        break;
-    case 2:
-        newx = SEEX * 2 - 1 - tarx;
-        newy = SEEY * 2 - 1 - tary;
-        break;
-    case 1:
-        newx = tary;
-        newy = SEEY * 2 - 1 - tarx;
-        break;
-    default:
-        break;
-    }
-    tarx = newx;
-    tary = newy;
+    rotate_helper(turns, tarx, tary);
+}
+
+compsec_nodisease::compsec_nodisease(std::stringstream& stream)
+{
+    stream >> disease;
+}
+
+compsec_nodisease::compsec_nodisease(JsonObject& jo)
+{
+    disease = jo.get_string("disease");
+}
+
+compsec_nodisease* compsec_nodisease::clone()
+{
+    return new compsec_nodisease(this->disease);
+}
+
+bool compsec_nodisease::attempt()
+{
+    return g->u.has_disease((dis_type) disease);
+}
+
+std::string compsec_nodisease::save()
+{
+    std::stringstream data;
+    data << "nodisease " << disease << " ";
+    return data.str();
 }
 
 compsec_chargecard::compsec_chargecard(std::stringstream& stream)
@@ -527,31 +559,36 @@ std::string compsec_containerat::save()
 
 void compact::rotate(int turns)
 {
-    turns = turns % 4;
-    // if tarx and tary are INT_MIN, they are unused.
-    if(tarx == INT_MIN || tary == INT_MIN || turns == 0){
-        return;
-    }
-    int newx = tarx;
-    int newy = tary;
-    switch(turns){
-    case 1: //_east
-        newx = -1 * tary;
-        newy = tarx;
-        break;
-    case 2: //_south
-        newx = -1 * tarx;
-        newy = -1 * tary;
-        break;
-    case 3: //_west
-        newx = tary;
-        newy = -1 * tarx;
-        break;
-    default:
-        break;
-    }
-    tarx = newx;
-    tary = newy;
+    rotate_helper(turns, tarx, tary);
+}
+
+compact_chmorale::compact_chmorale(std::stringstream& stream)
+{
+    stream >> min >> max >> maximum;
+}
+
+compact_chmorale::compact_chmorale(JsonObject& jo)
+{
+    min = jo.get_array("amount").next_int();
+    max = jo.get_array("amount").next_int();
+    maximum = jo.get_int("highest", 0);
+}
+
+compact_chmorale* compact_chmorale::clone()
+{
+    return new compact_chmorale(this->min, this->max, this->maximum);
+}
+
+void compact_chmorale::go()
+{
+    g->u.add_morale(MORALE_USED_COMPUTER, rng(min, max), maximum);
+}
+
+std::string compact_chmorale::save()
+{
+    std::stringstream data;
+    data << "chmorale " << min << " " << max << " " << maximum << " ";
+    return data.str();
 }
 
 compact_chter::compact_chter(std::stringstream &stream)
@@ -588,30 +625,35 @@ std::string compact_chter::save()
 
 compact_msg::compact_msg(std::stringstream &stream)
 {
-    stream >> msg;
+    stream >> msg >> error;
     msg = helper::swap_char(helper::underscore_to_space(msg), '|', '\n');
 }
 
 compact_msg::compact_msg(JsonObject &jo)
 {
     msg = jo.get_string("message");
+    error = jo.get_bool("error", false);
 }
 
 compact_msg* compact_msg::clone()
 {
-    return new compact_msg(this->msg);
+    return new compact_msg(this->msg, this->error);
 }
 
 void compact_msg::go()
 {
     c->reset_terminal();
-    c->print_text(msg.c_str());
+    if(!error){
+        c->print_text(msg.c_str());
+    } else {
+        c->print_error(msg.c_str());
+    }
 }
 
 std::string compact_msg::save()
 {
     std::stringstream data;
-    data << "msg " << helper::swap_char(helper::space_to_underscore(msg), '\n', '|') << " ";
+    data << "msg " << helper::swap_char(helper::space_to_underscore(msg), '\n', '|') << " " << error << " ";
     return data.str();
 }
 
@@ -1085,15 +1127,15 @@ void compact_killmon::go()
     int x2 = c->usex - c->compx + brx;
     int y2 = c->usey - c->compy + bry;
 
-    for(int i = x1; i <= x2; i++)
+    for(int x = x1; x <= x2; x++)
     {
-        for(int j = y1; j <= y2; j++)
+        for(int y = y1; y <= y2; y++)
         {
-            int mondex = g->mon_at(i, j);
+            int mondex = g->mon_at(x, y);
             if(mondex != -1)
             {
                 // hopefully the mondex check is enough to ensure that critter_at is not null
-                g->critter_at(i, j)->die(nullptr);
+                g->critter_at(x, y)->die(nullptr);
             }
         }
     }
@@ -2004,6 +2046,7 @@ void computer::load_data(std::string data)
 
 void computer::rotate(int turns)
 {
+    rotate_helper(turns, compx, compy);
     for(auto opt : compopts){
         opt.rotate(turns);
     }

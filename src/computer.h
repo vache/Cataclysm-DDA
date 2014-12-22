@@ -13,6 +13,8 @@ class game;
 class player;
 class computer;
 
+void rotate_helper(int turns, int& x, int &y);
+
 enum computer_action {
     COMPACT_NULL = 0,
     COMPACT_OPEN,
@@ -107,14 +109,14 @@ public:
 class compsec_nodisease : public compsec
 {
 public:
-    compsec_nodisease(int charges) : charges(charges){}
+    compsec_nodisease(std::string disease) : disease(disease){}
     compsec_nodisease(std::stringstream& stream);
     compsec_nodisease(JsonObject& jo);
     ~compsec_nodisease(){}
     compsec_nodisease* clone();
     bool attempt();
     std::string save();
-    int charges;
+    std::string disease;
 };
 
 class compsec_chargecard : public compsec
@@ -281,6 +283,19 @@ public:
     void rotate(int turns);
 };
 
+class compact_chmorale : public compact
+{
+public:
+    compact_chmorale(int min, int max, int highest = 0) : min(min), max(max), maximum(highest){}
+    compact_chmorale(std::stringstream& stream);
+    compact_chmorale(JsonObject& jo);
+    ~compact_chmorale(){}
+    compact_chmorale* clone();
+    void go();
+    std::string save();
+    int min, max, maximum;
+};
+
 class compact_chter : public compact
 {
 public:
@@ -297,7 +312,7 @@ public:
 class compact_msg : public compact
 {
 public:
-    compact_msg(std::string message) : msg(message) {}
+    compact_msg(std::string message, bool error = false) : msg(message), error(error) {}
     compact_msg(std::stringstream& stream);
     compact_msg(JsonObject& jo);
     ~compact_msg(){}
@@ -305,6 +320,7 @@ public:
     void go();
     std::string save();
     std::string msg;
+    bool error;
 };
 
 class compact_chlvl : public compact
